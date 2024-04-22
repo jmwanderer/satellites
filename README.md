@@ -22,3 +22,10 @@ python animate_orbits.py
 
 ![screenshot](orbits.png)
 
+# Useful Information
+
+- [Skyfield Library](https://rhodesmill.org/skyfield/earth-satellites.html)
+- [Network topology design at 27,000 km.hour](https://satnetwork.github.io)
+- [Celes Track Satellite Catalog](https://celestrak.org/satcat/search.php)
+
+
