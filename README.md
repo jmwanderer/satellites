@@ -20,3 +20,5 @@ python animate_orbits.py
 - Enter q to quit.
 - Use arrow keys to change the view
 
+![screenshot][orbits.png]
+
