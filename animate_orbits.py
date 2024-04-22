@@ -9,6 +9,7 @@ from direct.showbase.ShowBase import ShowBase
 base = ShowBase()
 
 from direct.gui.DirectGui import *
+from direct.showbase.DirectObject import DirectObject
 from panda3d.core import TextNode
 from direct.task import Task
 
@@ -16,12 +17,14 @@ import sys
 import math
 
 
-class World():
+class World(DirectObject):
 
     def __init__(self):
         base.disableMouse()  # disable mouse control of the camera
         camera.setPos(0, -45, 0)  # Set the camera position (X, Y, Z)
         camera.setHpr(0, 0, 0)  # Set the camera orientation
+        #base.cam.setPos(0,-20,50)
+        #base.cam.lookAt(render)
 
         # Seconds in a day for the earth rotation.
         self.day_len = 24 * 60 * 60
@@ -46,6 +49,32 @@ class World():
         self.loadElements()
         self.rotateElements()
         taskMgr.add(self.gLoop,'gloop')
+        self.accept('q', sys.exit)
+        self.accept('arrow_up', self.moveUp)
+        self.accept('arrow_down', self.moveDown)
+        self.accept('arrow_right', self.moveRight)
+        self.accept('arrow_left', self.moveLeft)
+        self.heading = 0
+        self.pitch = 0
+
+    def setView(self):
+        self.base.setHpr(self.heading, self.pitch, 0)
+
+    def moveUp(self):
+        self.pitch -= 30
+        self.setView()
+
+    def moveDown(self):
+        self.pitch += 30
+        self.setView()
+
+    def moveLeft(self):
+        self.heading -= 30
+        self.setView()
+
+    def moveRight(self):
+        self.heading += 30
+        self.setView()
 
     def loadElements(self):
         """
@@ -55,13 +84,14 @@ class World():
         # Create nodes used to incline the orbit and rotate.
         # Pivots are nodes that change heading for rotation.
         # 40 orbits of 40 satellites
+        self.base = render.attachNewNode('base')
         orbits = 40
         for i in range(0, orbits):
             # We use one node, an oribt path to orient the orbit, setting the
             # degree of tilt and the orientation.
-            orbit_path = render.attachNewNode(f'orbit_path_{i}')
+            orbit_path = self.base.attachNewNode(f'orbit_path_{i}')
             heading = (360 / orbits) * i
-            orbit_path.setHpr(heading, 0, 37)
+            orbit_path.setHpr(heading, 0, 53)
 
             # We create an additional node to simply rotate in the plane
             # set by the orbit path to which it is attached. We save this
@@ -89,7 +119,7 @@ class World():
         self.earth = loader.loadModel("models/planet_sphere")
         earth_tex = loader.loadTexture("models/earth_1k_tex.jpg")
         self.earth.setTexture(earth_tex, 1)
-        self.earth.reparentTo(render)
+        self.earth.reparentTo(self.base)
         self.earth.setScale(self.earth_size_scale)
         self.earth.setHpr(0,0,0)
 

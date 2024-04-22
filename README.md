@@ -17,3 +17,6 @@ Run an animation of a 40x40 LEO satellite conselation.
 python animate_orbits.py
 ```
 
+- Enter q to quit.
+- Use arrow keys to change the view
+
