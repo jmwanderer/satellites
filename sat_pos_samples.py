@@ -1,4 +1,3 @@
-
 from skyfield.api import EarthSatellite
 from skyfield.api import load, wgs84
 from skyfield.positionlib import Geocentric
@@ -15,7 +14,7 @@ print(sat.epoch.utc_jpl())
 print()
 print("Geocentric Position")
 ts = load.timescale()
-geo = sat.at(ts.now()) 
+geo = sat.at(ts.now())
 lat, lon = wgs84.latlon_of(geo)
 print(geo.position.km)
 print(f"Latitude: {lat}")
@@ -25,13 +24,9 @@ print(f"Distance from center of earth: {geo.distance().km}km")
 
 print()
 print("Geo of 1au, 0, 0")
-geo = Geocentric([1, 0, 0],t=ts.now())
+geo = Geocentric([1, 0, 0], t=ts.now())
 lat, lon = wgs84.latlon_of(geo)
 print(geo.position.km)
 print(f"Latitude: {lat}")
 print(f"Longitude: {lon}")
 print(f"Distance: {geo.distance()}")
-
-
-
-
