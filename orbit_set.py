@@ -5,14 +5,57 @@ Render a set of satellites in orbit around the earth.
 Derived from: https://github.com/panda3d/panda3d/tree/master/samples/solar-system
 """
 
-import sys
+
+from dataclasses import dataclass
 import datetime
+import queue
+import sys
+import time
+import threading
 
 from direct.showbase.ShowBase import ShowBase
 from direct.showbase.DirectObject import DirectObject
 from direct.task import Task
 from skyfield.api import load, wgs84
 from skyfield.positionlib import Geocentric
+
+@dataclass
+class PositionUpdate:
+    """Reports new positions for objects."""
+    name: str
+    position: tuple
+    rotation: int
+    time: datetime.datetime
+
+done = False
+def generate_positions(update_q: queue.Queue, sat_entries):
+    ts = load.timescale()
+    while not done:
+        time_now = datetime.datetime.now(tz=datetime.UTC)
+        # Generate earth rotation location
+        sf_time = ts.from_datetime(time_now)
+        geo = Geocentric([1, 0, 0],t=sf_time)
+        #print("Earth geo: %s" % geo.position.km)
+        lat, lon = wgs84.latlon_of(geo)
+        #print(f"lat: {lat}, lon: {lon}")
+        update = PositionUpdate("earth", (), lon.degrees, time_now)
+        update_q.put(update)
+
+        # Generate position for each satellite
+        count = 0
+        for sat in sat_entries:
+            #print(f"Name: {sat.name}")
+            geo = sat.at(sf_time) 
+            lat, lon = wgs84.latlon_of(geo)
+            #print(geo.position.km)
+            #print(f"Latitude: {lat}")
+            #print(f"Longitude: {lon}")
+            #print()
+            update = PositionUpdate(sat.name, geo.position.km, 0, time_now)
+            update_q.put(update)
+            count += 1
+        print(f"generated locations for {count} satellites")
+        time.sleep(5)
 
 
 base = ShowBase()
@@ -35,20 +78,17 @@ class World(DirectObject):
         # Scale orbit above the earth
         self.orbitscale = self.earth_size_scale * ( 1 + 500 / 6373)
         self.pos_scale = self.earth_size_scale / 6373
-        self.satellites = []
+        self.satellites = {}
         self.sat_entries = []
-        self.positions = []
-        self.time = datetime.datetime.now(tz=datetime.UTC)
+        self.update_q = queue.Queue()
 
     def setup_elements(self):
         url = "https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle"
-        url = "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle"
         url = "https://celestrak.org/NORAD/elements/gp.php?INTDES=2023-154"
-        self.sat_entries = load.tle_file(url, reload=True)
-        print("Loaded %d satellites", len(self.satellites))
-        self.generate_positions()
+        url = "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle"
+        self.sat_entries = load.tle_file(url)
+        print("Loaded %d satellites" % len(self.sat_entries))
         self.loadElements()
-        self.rotateElements()
         self.accept('q', sys.exit)
         self.accept('arrow_up', self.moveUp)
         self.accept('arrow_down', self.moveDown)
@@ -56,33 +96,12 @@ class World(DirectObject):
         self.accept('arrow_left', self.moveLeft)
         self.heading = 0
         self.pitch = 0
+        self.t = threading.Thread(target=generate_positions, 
+                                  args=[self.update_q, self.sat_entries],
+                                  daemon=True)
+        self.t.start()
+        base.taskMgr.add(self.gLoop,'gloop')
     
-    def generate_positions(self):
-        # Gererate earth rotation location
-        ts = load.timescale()
-        time = ts.from_datetime(self.time)
-        print("Geo of 1au, 0, 0")
-        geo = Geocentric([1, 0, 0],t=time)
-        lat, lon = wgs84.latlon_of(geo)
-        print(geo.position.km)
-        print(f"Latitude: {lat}")
-        print(f"Longitude: {lon}")
-        print(f"Distance: {geo.distance()}")
-        self.earth_rotation = lon.degrees
-
-        self.positions = []
-        for sat in self.sat_entries:
-            print(f"Name: {sat.name}")
-            #print("Epoch %s" % sat.epoch.utc_jpl())
-            #print("Geocentric Position")
-            geo = sat.at(time) 
-            lat, lon = wgs84.latlon_of(geo)
-            print(geo.position.km)
-            print(f"Latitude: {lat}")
-            print(f"Longitude: {lon}")
-            print()
-            self.positions.append(geo.position.km)
-
 
     def setView(self):
         self.base.setHpr(self.heading, self.pitch, 0)
@@ -113,30 +132,38 @@ class World(DirectObject):
         # 40 orbits of 40 satellites
         self.base = base.render.attachNewNode('base')
 
-        for pos in self.positions:
+        for sat_entry in self.sat_entries:
             sat = base.loader.loadModel("models/planet_sphere")
             sat.reparentTo(self.base)
             sat.setScale(self.sat_size_scale)
-            x = pos[0] * self.pos_scale
-            y = pos[1] * self.pos_scale
-            z = pos[2] * self.pos_scale
-            sat.setPos(x, y, z)
-
+            self.satellites[sat_entry.name]  = sat
         # Load the Earth
         self.earth = base.loader.loadModel("models/planet_sphere")
         earth_tex = base.loader.loadTexture("models/earth_1k_tex.jpg")
         self.earth.setTexture(earth_tex, 1)
         self.earth.reparentTo(self.base)
         self.earth.setScale(self.earth_size_scale)
-        rotate = 180 - self.earth_rotation
-        self.earth.setHpr(rotate,0,0)
+
+    def processPositionUpdate(self, update: PositionUpdate):
+        if update.name == "earth":
+            # Calculate a magic number that seems to align with the image we use??
+            rotate = 163 - update.rotation
+            print("rotate earth: %d degrees" % rotate)
+            self.earth.setHpr(rotate,0,0)
+            return
+        
+        satellite = self.satellites[update.name]
+        x = update.position[0] * self.pos_scale
+        y = update.position[1] * self.pos_scale
+        z = update.position[2] * self.pos_scale
+        satellite.setPos(x, y, z)
+
+    def gLoop(self,task):
+        while not self.update_q.empty():
+            self.processPositionUpdate(self.update_q.get())
+        return Task.cont
 
 
-    def rotateElements(self):
-        """
-        Create all loops to drive the animation.
-        """
-        # Create a loop to rotate the earth
 
 w = World()
 w.setup_elements()
