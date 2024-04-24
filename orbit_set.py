@@ -1,9 +1,12 @@
 """
-Render a set of satellites in orbit around the earth.
-40 orbits of 40 satellites at a ~53 degree incline to the equator.
+Load a TLE file and draw the Satellites, updating locations every 5 seconds.
 
-Derived from: https://github.com/panda3d/panda3d/tree/master/samples/solar-system
 """
+
+# TODO:
+# - Click on a satellite and display information
+# - smooth animation with posInterval?
+# - allow time to run faster than 1:1
 
 
 from dataclasses import dataclass
@@ -63,11 +66,11 @@ class World(DirectObject):
 
     def __init__(self):
         base.disableMouse()  # disable mouse control of the camera
-        base.camera.setPos(0, -60, 0)  # Set the camera position (X, Y, Z)
         base.camera.setHpr(0, 0, 0)  # Set the camera orientation
 
         # Time speed up factor for animation.
         self.speed = 1
+        self.zoom = 8
 
         # Scale earth, satellites, and orbit
         self.sat_size_scale = 0.1  
@@ -76,16 +79,30 @@ class World(DirectObject):
         # Radius of earth 6373km
         # Orbit height above earch 500km
         # Scale orbit above the earth
-        self.orbitscale = self.earth_size_scale * ( 1 + 500 / 6373)
         self.pos_scale = self.earth_size_scale / 6373
         self.satellites = {}
         self.sat_entries = []
         self.update_q = queue.Queue()
+        self.setCameraPos()
+
+    def setCameraPos(self):
+        altitude = 6373 + self.zoom**2 * 500
+        zoom = -altitude * self.pos_scale
+        print(f"set camera y = {zoom}")
+        if zoom > -self.earth_size_scale - 1:
+            zoom = -self.earth_size_scale - 1
+        base.camera.setPos(0, zoom, 0)  # Set the camera position (X, Y, Z)
 
     def setup_elements(self):
-        url = "https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle"
+        # If you change this, delete gp.php
+        # Kuiper
         url = "https://celestrak.org/NORAD/elements/gp.php?INTDES=2023-154"
+        # GPS Satellites
+        url = "https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle"
+        # Starlink
         url = "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle"
+        # Space stations
+        url = "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle"
         self.sat_entries = load.tle_file(url)
         print("Loaded %d satellites" % len(self.sat_entries))
         self.loadElements()
@@ -94,6 +111,8 @@ class World(DirectObject):
         self.accept('arrow_down', self.moveDown)
         self.accept('arrow_right', self.moveRight)
         self.accept('arrow_left', self.moveLeft)
+        self.accept('+', self.zoomIn)
+        self.accept('-', self.zoomOut)
         self.heading = 0
         self.pitch = 0
         self.t = threading.Thread(target=generate_positions, 
@@ -105,6 +124,15 @@ class World(DirectObject):
 
     def setView(self):
         self.base.setHpr(self.heading, self.pitch, 0)
+
+    def zoomIn(self):
+        if self.zoom > 1:
+            self.zoom -= 1
+            self.setCameraPos()
+
+    def zoomOut(self):
+        self.zoom += 1
+        self.setCameraPos()
 
     def moveUp(self):
         self.pitch -= 30
