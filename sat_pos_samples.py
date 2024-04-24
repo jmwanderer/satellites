@@ -1,6 +1,7 @@
 
 from skyfield.api import EarthSatellite
 from skyfield.api import load, wgs84
+from skyfield.positionlib import Geocentric
 
 text = """
 KUIPER-P2
@@ -19,6 +20,18 @@ lat, lon = wgs84.latlon_of(geo)
 print(geo.position.km)
 print(f"Latitude: {lat}")
 print(f"Longitude: {lon}")
+print(f"Distance from center of earth: {geo.distance().km}km")
+
+
+print()
+print("Geo of 1au, 0, 0")
+geo = Geocentric([1, 0, 0],t=ts.now())
+lat, lon = wgs84.latlon_of(geo)
+print(geo.position.km)
+print(f"Latitude: {lat}")
+print(f"Longitude: {lon}")
+print(f"Distance: {geo.distance()}")
+
 
 
 

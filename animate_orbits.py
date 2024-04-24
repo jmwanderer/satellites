@@ -21,8 +21,8 @@ class World(DirectObject):
 
     def __init__(self):
         base.disableMouse()  # disable mouse control of the camera
-        camera.setPos(0, -45, 0)  # Set the camera position (X, Y, Z)
-        camera.setHpr(0, 0, 0)  # Set the camera orientation
+        base.camera.setPos(0, -45, 0)  # Set the camera position (X, Y, Z)
+        base.camera.setHpr(0, 0, 0)  # Set the camera orientation
         #base.cam.setPos(0,-20,50)
         #base.cam.lookAt(render)
 
@@ -48,7 +48,7 @@ class World(DirectObject):
 
         self.loadElements()
         self.rotateElements()
-        taskMgr.add(self.gLoop,'gloop')
+        base.taskMgr.add(self.gLoop,'gloop')
         self.accept('q', sys.exit)
         self.accept('arrow_up', self.moveUp)
         self.accept('arrow_down', self.moveDown)
@@ -84,7 +84,7 @@ class World(DirectObject):
         # Create nodes used to incline the orbit and rotate.
         # Pivots are nodes that change heading for rotation.
         # 40 orbits of 40 satellites
-        self.base = render.attachNewNode('base')
+        self.base = base.render.attachNewNode('base')
         orbits = 40
         for i in range(0, orbits):
             # We use one node, an oribt path to orient the orbit, setting the
@@ -105,7 +105,7 @@ class World(DirectObject):
             separation = math.pi * 2 / num_sats  
 
             for sat_num in range(0, num_sats):
-                sat = loader.loadModel("models/planet_sphere")
+                sat = base.loader.loadModel("models/planet_sphere")
                 sat.reparentTo(orbit_pivot)
                 sat.setScale(self.sat_size_scale)
                 rads = separation * sat_num
@@ -116,8 +116,8 @@ class World(DirectObject):
                 sat.setPos(x, y, 0)
 
         # Load the Earth
-        self.earth = loader.loadModel("models/planet_sphere")
-        earth_tex = loader.loadTexture("models/earth_1k_tex.jpg")
+        self.earth = base.loader.loadModel("models/planet_sphere")
+        earth_tex = base.loader.loadTexture("models/earth_1k_tex.jpg")
         self.earth.setTexture(earth_tex, 1)
         self.earth.reparentTo(self.base)
         self.earth.setScale(self.earth_size_scale)
