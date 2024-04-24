@@ -10,7 +10,7 @@ python3 -m venv venv
 pip install -r requirements.txt
 ```
 
-# Animate Orbits
+# Animate Ideal Orbits
 Run an animation of a 40x40 LEO satellite conselation.
 
 ```
@@ -22,6 +22,18 @@ python animate_orbits.py
 
 ![screenshot](orbits.png)
 
+# Animate Real Satellite Groups
+Use TLE files to position and update groups of Satellites in real time
+
+```
+python orbit_set.py
+```
+
+- q to quit
+- + and - top zoom in and out (shift + does not yet work)
+- arrow keys to change the orientation of the world
+
+Note: if you change sets of TLE files, manually delete gp.php
 
 # Network Topology and Routes
 Build a topology and routing tables
