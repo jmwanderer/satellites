@@ -26,14 +26,21 @@ python animate_orbits.py
 Use TLE files to position and update groups of Satellites in real time
 
 ```
-python orbit_set.py
+python orbit_set.py starlink
 ```
 
-- q to quit
+The availabel constellations are:
+- starlink
+- stations (space stations)
+- kuiper
+- GPS
+
+You can control the image display:
 - + and - top zoom in and out (shift + does not yet work)
 - arrow keys to change the orientation of the world
+- q to quit
 
-Note: if you change sets of TLE files, manually delete gp.php
+![screenshot](starlink.png)
 
 # Network Topology and Routes
 Build a topology and routing tables

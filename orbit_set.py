@@ -11,6 +11,7 @@ Load a TLE file and draw the Satellites, updating locations every 5 seconds.
 
 from dataclasses import dataclass
 import datetime
+import os
 import queue
 import sys
 import time
@@ -100,17 +101,27 @@ class World(DirectObject):
             zoom = -self.earth_size_scale - 1
         base.camera.setPos(0, zoom, 0)  # Set the camera position (X, Y, Z)
 
-    def setup_elements(self):
-        # If you change this, delete gp.php
-        # Kuiper
-        url = "https://celestrak.org/NORAD/elements/gp.php?INTDES=2023-154"
-        # GPS Satellites
-        url = "https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle"
-        # Starlink
-        url = "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle"
-        # Space stations
-        url = "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle"
-        self.sat_entries = load.tle_file(url)
+    URLS = { 
+            "kuiper" : "https://celestrak.org/NORAD/elements/gp.php?INTDES=2023-154",
+            "GPS" : "https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle",
+            "stations" : "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle",
+            "starlink" : "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle"
+            }
+
+    def setup_elements(self, selection):
+        if selection not in World.URLS:
+            print(f"{selection} unknown")
+            print(World.URLS.keys())
+            sys.exit(-1)
+
+        url = World.URLS[selection]
+
+        print(f"loading constellation: {selection}")
+        # Reload if more than a week old.
+        reload = False
+        if os.path.exists(selection):
+            reload = os.stat(selection).st_mtime < time.time() - 60 * 60 * 24 * 7
+        self.sat_entries = load.tle_file(url, filename=selection, reload=reload)
         print("Loaded %d satellites" % len(self.sat_entries))
         self.loadElements()
         self.accept("q", sys.exit)
@@ -199,7 +210,9 @@ class World(DirectObject):
             self.processPositionUpdate(self.update_q.get())
         return Task.cont
 
-
+selection = "kuiper"
+if len(sys.argv) > 1:
+    selection = sys.argv[1]
 w = World()
-w.setup_elements()
+w.setup_elements(selection)
 base.run()
