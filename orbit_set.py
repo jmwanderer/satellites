@@ -17,6 +17,8 @@ import sys
 import time
 import threading
 
+from panda3d.core import PandaNode
+from panda3d.core import Point3
 from direct.showbase.ShowBase import ShowBase
 from direct.showbase.DirectObject import DirectObject
 from direct.task import Task
@@ -31,6 +33,7 @@ class PositionUpdate:
     name: str
     position: tuple
     rotation: int
+    now: bool
     time: datetime.datetime
 
 
@@ -39,31 +42,41 @@ done = False
 
 def generate_positions(update_q: queue.Queue, sat_entries):
     ts = load.timescale()
+    first = True
     while not done:
         time_now = datetime.datetime.now(tz=datetime.UTC)
+        delta = datetime.timedelta(seconds=10)
+        time_future = datetime.datetime.now(tz=datetime.UTC) + delta
         # Generate earth rotation location
-        sf_time = ts.from_datetime(time_now)
-        geo = Geocentric([1, 0, 0], t=sf_time)
+        sf_time_now = ts.from_datetime(time_now)
+        sf_time_future = ts.from_datetime(time_future)
+        geo = Geocentric([1, 0, 0], t=sf_time_now)
         # print("Earth geo: %s" % geo.position.km)
         lat, lon = wgs84.latlon_of(geo)
         # print(f"lat: {lat}, lon: {lon}")
-        update = PositionUpdate("earth", (), lon.degrees, time_now)
+        update = PositionUpdate("earth", (), lon.degrees, True, time_now)
         update_q.put(update)
 
         # Generate position for each satellite
         count = 0
         for sat in sat_entries:
             # print(f"Name: {sat.name}")
-            geo = sat.at(sf_time)
+            if first:
+                # Create initial position
+                geo = sat.at(sf_time_now)
+                lat, lon = wgs84.latlon_of(geo)
+                update = PositionUpdate(sat.name, geo.position.km, 0, True, time_now)
+                update_q.put(update)
+
+            # Create future position
+            geo = sat.at(sf_time_future)
             lat, lon = wgs84.latlon_of(geo)
-            # print(geo.position.km)
-            # print(f"Latitude: {lat}")
-            # print(f"Longitude: {lon}")
-            # print()
-            update = PositionUpdate(sat.name, geo.position.km, 0, time_now)
+            update = PositionUpdate(sat.name, geo.position.km, 0, False, time_future)
             update_q.put(update)
             count += 1
+
         print(f"generated locations for {count} satellites")
+        first = False
         time.sleep(5)
 
 
@@ -88,7 +101,8 @@ class World(DirectObject):
         # Orbit height above earch 500km
         # Scale orbit above the earth
         self.pos_scale = self.earth_size_scale / 6373
-        self.satellites = {}
+        self.satellites  : dict[str, PandaNode]= {}
+        self.sat_intervals : dict[str, PositionUpdate] = {}
         self.sat_entries = []
         self.update_q = queue.Queue()
         self.setCameraPos()
@@ -207,7 +221,20 @@ class World(DirectObject):
         x = update.position[0] * self.pos_scale
         y = update.position[1] * self.pos_scale
         z = update.position[2] * self.pos_scale
-        satellite.setPos(x, y, z)
+        if update.now:
+            print(f"set sat pos {x},{y},{z}")
+            satellite.setPos(x, y, z)
+        else:
+            interval = self.sat_intervals.get(update.name)
+            if interval is not None:
+                interval.pause()
+            time_now = datetime.datetime.now(tz=datetime.UTC)
+            delta = update.time - time_now
+            print(f"set sat interval {x},{y},{z} in {delta.seconds}")
+            interval = satellite.posInterval(delta.seconds, Point3(x, y, z))
+            interval.start()
+            self.sat_intervals[update.name] = interval
+ 
 
     def gLoop(self, task):
         while not self.update_q.empty():
