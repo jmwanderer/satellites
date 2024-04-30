@@ -5,7 +5,7 @@ Load a TLE file and draw the Satellites, updating locations every 5 seconds.
 
 # TODO:
 # - Click on a satellite and display information
-# - smooth animation with posInterval?
+# - smooth animation with posInterval? May display orbital motion better
 # - allow time to run faster than 1:1
 
 
@@ -111,17 +111,21 @@ class World(DirectObject):
     def setup_elements(self, selection):
         if selection not in World.URLS:
             print(f"{selection} unknown")
-            print(World.URLS.keys())
+            print(list(World.URLS.keys()))
             sys.exit(-1)
 
         url = World.URLS[selection]
 
         print(f"loading constellation: {selection}")
+        if not os.path.exists("cache"):
+            os.mkdir("cache")
+
         # Reload if more than a week old.
         reload = False
-        if os.path.exists(selection):
-            reload = os.stat(selection).st_mtime < time.time() - 60 * 60 * 24 * 7
-        self.sat_entries = load.tle_file(url, filename=selection, reload=reload)
+        filename = f"cache/{selection}.tle"
+        if os.path.exists(filename):
+            reload = os.stat(filename).st_mtime < time.time() - 60 * 60 * 24 * 7
+        self.sat_entries = load.tle_file(url, filename=filename, reload=reload)
         print("Loaded %d satellites" % len(self.sat_entries))
         self.loadElements()
         self.accept("q", sys.exit)
