@@ -5,8 +5,7 @@ Load a TLE file and draw the Satellites, updating locations every 5 seconds.
 
 # TODO:
 # - Click on a satellite and display information
-# - smooth animation with posInterval? May display orbital motion better
-# - allow time to run faster than 1:1
+# - Display current time 
 
 
 from dataclasses import dataclass
@@ -19,6 +18,7 @@ import threading
 
 from panda3d.core import PandaNode
 from panda3d.core import Point3
+from panda3d.core import LVecBase3
 from direct.showbase.ShowBase import ShowBase
 from direct.showbase.DirectObject import DirectObject
 from direct.task import Task
@@ -38,23 +38,39 @@ class PositionUpdate:
 
 
 done = False
+TIME_RATE=60
+
+start_time = datetime.datetime.now(tz=datetime.UTC)
+def vtime_now() -> datetime.datetime:
+    time_now = datetime.datetime.now(tz=datetime.UTC)
+    delta = time_now - start_time
+    delta = delta * TIME_RATE
+    return start_time + delta
+
 
 
 def generate_positions(update_q: queue.Queue, sat_entries):
     ts = load.timescale()
     first = True
+    future_seconds = min(60, 5 * TIME_RATE)
+
     while not done:
-        time_now = datetime.datetime.now(tz=datetime.UTC)
-        delta = datetime.timedelta(seconds=10)
-        time_future = datetime.datetime.now(tz=datetime.UTC) + delta
+        time_now = vtime_now()
+        delta = datetime.timedelta(seconds=future_seconds)
+        time_future = time_now + delta
         # Generate earth rotation location
         sf_time_now = ts.from_datetime(time_now)
         sf_time_future = ts.from_datetime(time_future)
-        geo = Geocentric([1, 0, 0], t=sf_time_now)
-        # print("Earth geo: %s" % geo.position.km)
+        if first:
+            geo = Geocentric([1, 0, 0], t=sf_time_now)
+            lat, lon = wgs84.latlon_of(geo)
+            update = PositionUpdate("earth", (), lon.degrees, True, time_now)
+            update_q.put(update)
+    
+        # Create future position
+        geo = Geocentric([1, 0, 0], t=sf_time_future)
         lat, lon = wgs84.latlon_of(geo)
-        # print(f"lat: {lat}, lon: {lon}")
-        update = PositionUpdate("earth", (), lon.degrees, True, time_now)
+        update = PositionUpdate("earth", (), lon.degrees, False, time_future)
         update_q.put(update)
 
         # Generate position for each satellite
@@ -74,10 +90,20 @@ def generate_positions(update_q: queue.Queue, sat_entries):
             update = PositionUpdate(sat.name, geo.position.km, 0, False, time_future)
             update_q.put(update)
             count += 1
+            if count % 100 == 0:
+                time.sleep(0)
 
         print(f"generated locations for {count} satellites")
         first = False
-        time.sleep(5)
+        print(f"vtime_now: {vtime_now()}")
+        print(f"time_future: {time_future}")
+        delta = (time_future - vtime_now())
+        print(f"delta: {delta}")
+        sleep_time = delta / TIME_RATE 
+        print(f"sleep time {sleep_time}")
+        sleep_seconds = max(0,sleep_time.total_seconds() - 0.2)
+        print(f"sleep seconds {sleep_seconds}")
+        time.sleep(sleep_seconds)
 
 
 base = ShowBase()
@@ -214,7 +240,18 @@ class World(DirectObject):
             # Calculate a magic number that seems to align with the image we use??
             rotate = 163 - update.rotation
             print("rotate earth: %d degrees" % rotate)
-            self.earth.setHpr(rotate, 0, 0)
+            if update.now:
+                self.earth.setHpr(rotate, 0, 0)
+            else:
+                interval = self.sat_intervals.get(update.name)
+                if interval is not None:
+                    interval.pause()
+                time_now = vtime_now()
+                delta = update.time - time_now
+                interval = self.earth.hprInterval(delta.seconds / TIME_RATE, LVecBase3(rotate, 0, 0))
+                interval.start()
+                self.sat_intervals[update.name] = interval
+ 
             return
 
         satellite = self.satellites[update.name]
@@ -222,16 +259,14 @@ class World(DirectObject):
         y = update.position[1] * self.pos_scale
         z = update.position[2] * self.pos_scale
         if update.now:
-            print(f"set sat pos {x},{y},{z}")
             satellite.setPos(x, y, z)
         else:
             interval = self.sat_intervals.get(update.name)
             if interval is not None:
                 interval.pause()
-            time_now = datetime.datetime.now(tz=datetime.UTC)
+            time_now = vtime_now()
             delta = update.time - time_now
-            print(f"set sat interval {x},{y},{z} in {delta.seconds}")
-            interval = satellite.posInterval(delta.seconds, Point3(x, y, z))
+            interval = satellite.posInterval(delta.seconds / TIME_RATE, Point3(x, y, z))
             interval.start()
             self.sat_intervals[update.name] = interval
  
