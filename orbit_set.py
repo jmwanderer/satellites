@@ -6,6 +6,9 @@ Load a TLE file and draw the Satellites, updating locations every 5 seconds.
 # TODO:
 # - Click on a satellite and display information
 # - Display current time 
+# - Adjust sat size by zoom distance
+# - consider transforming arrow key input
+# - control speed of time
 
 
 from dataclasses import dataclass
@@ -40,14 +43,34 @@ class PositionUpdate:
 done = False
 TIME_RATE=60
 
-start_time = datetime.datetime.now(tz=datetime.UTC)
+# Global variables accessed by both threads, not protected by a mutex
+# As currently structured, this should not cause a problem
+last_time_sample: datetime.datetime = datetime.datetime.now(tz=datetime.UTC)
+current_vtime: datetime.datetime = last_time_sample
+vtime_paused: bool = False
+
 def vtime_now() -> datetime.datetime:
-    time_now = datetime.datetime.now(tz=datetime.UTC)
-    delta = time_now - start_time
-    delta = delta * TIME_RATE
-    return start_time + delta
+    global last_time_sample
+    global current_vtime
+    global vtime_paused
+    if not vtime_paused:
+        # Calculate delta from last time sample and add to current time
+        time_now = datetime.datetime.now(tz=datetime.UTC)
+        delta = time_now - last_time_sample
+        delta = delta * TIME_RATE
+        last_time_sample = time_now
+        current_vtime += delta
+    return current_vtime
 
+def pause_vtime():
+    global vtime_paused
+    vtime_paused = True
 
+def resume_vtime():
+    global last_time_sample
+    global vtime_paused
+    last_time_sample = datetime.datetime.now(tz=datetime.UTC)
+    vtime_paused = False
 
 def generate_positions(update_q: queue.Queue, sat_entries):
     ts = load.timescale()
@@ -175,6 +198,7 @@ class World(DirectObject):
         self.accept("arrow_left", self.moveLeft)
         self.accept("+", self.zoomIn)
         self.accept("-", self.zoomOut)
+        self.accept("space", self.togglePause)
         self.heading = 0
         self.pitch = 0
         self.t = threading.Thread(
@@ -212,6 +236,12 @@ class World(DirectObject):
     def moveRight(self):
         self.heading += 30
         self.setView()
+
+    def togglePause(self):
+        if vtime_paused:
+            resume_vtime()
+        else:
+            pause_vtime()
 
     def loadElements(self):
         """
