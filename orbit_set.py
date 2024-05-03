@@ -117,7 +117,7 @@ def generate_positions(update_q: queue.Queue, sat_entries):
                 duration = 0
                 if len(sat_entries) > 100:
                     # Spread out update generation throughout the interval.
-                    duration = future_seconds * 50 / len(sat_entries) / TIME_RATE
+                    duration = (future_seconds * 50 / len(sat_entries) / TIME_RATE) * 0.9
                 time.sleep(duration)
                 recalc_time = True
 
