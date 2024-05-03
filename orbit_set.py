@@ -318,8 +318,12 @@ class World(DirectObject):
     def togglePause(self):
         if vtime_paused:
             resume_vtime()
+            for interval in self.sat_intervals.values():
+                interval.resume()
         else:
             pause_vtime()
+            for interval in self.sat_intervals.values():
+                interval.pause()
 
     def get_sat_size_scale(self) -> int:
         # Increase scale with farther zoom settings. 
