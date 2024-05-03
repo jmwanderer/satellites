@@ -5,8 +5,6 @@ Load a TLE file and draw the Satellites, updating locations every 5 seconds.
 
 # TODO:
 # - Click on a satellite and display information
-# - Display current time 
-# - Adjust sat size by zoom distance
 # - consider transforming arrow key input
 # - control speed of time
 
@@ -110,7 +108,7 @@ def generate_positions(update_q: queue.Queue, sat_entries):
                 duration = 0
                 if len(sat_entries) > 100:
                     # Spread out update generation throughout the interval.
-                    duration = future_seconds * 100 / len(sat_entries) / TIME_RATE
+                    duration = future_seconds * 50 / len(sat_entries) / TIME_RATE
                 time.sleep(duration)
                 recalc_time = True
 
@@ -195,7 +193,9 @@ class World(DirectObject):
         if zoom > -self.earth_size_scale - 1:
             zoom = -self.earth_size_scale - 1
         base.camera.setPos(0, zoom, 0)  # Set the camera position (X, Y, Z)
-
+        for name in self.satellites:
+            self.satellites[name].setScale(self.get_sat_size_scale())
+ 
     URLS = { 
             "kuiper" : "https://celestrak.org/NORAD/elements/gp.php?INTDES=2023-154",
             "GPS" : "https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle",
@@ -222,6 +222,7 @@ class World(DirectObject):
             reload = os.stat(filename).st_mtime < time.time() - 60 * 60 * 24 * 7
         self.sat_entries = load.tle_file(url, filename=filename, reload=reload)
         print("Loaded %d satellites" % len(self.sat_entries))
+
         self.loadElements()
         self.accept("q", sys.exit)
         self.accept("arrow_up", self.moveUp)
@@ -275,6 +276,11 @@ class World(DirectObject):
         else:
             pause_vtime()
 
+    def get_sat_size_scale(self) -> int:
+        # Increase scale with farther zoom settings. 
+        # zoom 8 : multiplier = 1
+        return self.sat_size_scale * (self.zoom / 8)
+
     def loadElements(self):
         """
         Create all of the nodes for the animation.
@@ -288,7 +294,7 @@ class World(DirectObject):
         for sat_entry in self.sat_entries:
             sat = base.loader.loadModel("models/planet_sphere")
             sat.reparentTo(self.base)
-            sat.setScale(self.sat_size_scale)
+            sat.setScale(self.get_sat_size_scale())
             self.satellites[sat_entry.name] = sat
         # Load the Earth
         self.earth = base.loader.loadModel("models/planet_sphere")
