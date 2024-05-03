@@ -13,6 +13,7 @@ Load a TLE file and draw the Satellites, updating locations every 5 seconds.
 
 from dataclasses import dataclass
 import datetime
+import math
 import os
 import queue
 import sys
@@ -81,6 +82,7 @@ def generate_positions(update_q: queue.Queue, sat_entries):
         time_now = vtime_now()
         delta = datetime.timedelta(seconds=future_seconds)
         time_future = time_now + delta
+        earliest_time_future = time_future
         # Generate earth rotation location
         sf_time_now = ts.from_datetime(time_now)
         sf_time_future = ts.from_datetime(time_future)
@@ -99,28 +101,46 @@ def generate_positions(update_q: queue.Queue, sat_entries):
         # Generate position for each satellite
         count = 0
         for sat in sat_entries:
-            # print(f"Name: {sat.name}")
+            recalc_time = False
+
+            # Pause every 100 calculations
+            if count % 100 == 0:
+                time.sleep(0)
+                recalc_time = True
+
+            while update_q.qsize() > len(sat_entries):
+                # Use backpressure on generating updates
+                time.sleep(0)
+                recalc_time = True
+
+            if recalc_time:
+               # Recalculate time values after potentially sleeping
+               recalc_time = False
+               time_now = vtime_now()
+               time_future = time_now + delta
+               sf_time_now = ts.from_datetime(time_now)
+               sf_time_future = ts.from_datetime(time_future)
+ 
+            #print(f"Gen Pos Name: {sat.name}")
             if first:
                 # Create initial position
                 geo = sat.at(sf_time_now)
-                lat, lon = wgs84.latlon_of(geo)
-                update = PositionUpdate(sat.name, geo.position.km, 0, True, time_now)
-                update_q.put(update)
+                if not math.isnan(geo.position.km[0]):
+                    update = PositionUpdate(sat.name, geo.position.km, 0, True, time_now)
+                    update_q.put(update)
 
             # Create future position
             geo = sat.at(sf_time_future)
-            lat, lon = wgs84.latlon_of(geo)
-            update = PositionUpdate(sat.name, geo.position.km, 0, False, time_future)
-            update_q.put(update)
+            if not math.isnan(geo.position.km[0]):
+                update = PositionUpdate(sat.name, geo.position.km, 0, False, time_future)
+                update_q.put(update)
             count += 1
-            if count % 100 == 0:
-                time.sleep(0)
 
         print(f"generated locations for {count} satellites")
         first = False
         print(f"vtime_now: {vtime_now()}")
-        print(f"time_future: {time_future}")
-        delta = (time_future - vtime_now())
+        print(f"time_future: {earliest_time_future}")
+        delta = (earliest_time_future - vtime_now())
         print(f"delta: {delta}")
         sleep_time = delta / TIME_RATE 
         print(f"sleep time {sleep_time}")
