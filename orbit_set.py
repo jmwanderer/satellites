@@ -22,6 +22,11 @@ from panda3d.core import PandaNode
 from panda3d.core import TextNode
 from panda3d.core import Point3
 from panda3d.core import LVecBase3
+from panda3d.core import CollisionNode
+from panda3d.core import CollisionRay
+from panda3d.core import CollisionTraverser
+from panda3d.core import CollisionHandlerQueue
+from panda3d.core import GeomNode
 from direct.gui.DirectGui import OnscreenText
 from direct.showbase.ShowBase import ShowBase
 from direct.showbase.DirectObject import DirectObject
@@ -162,6 +167,17 @@ class World(DirectObject):
         base.disableMouse()  # disable mouse control of the camera
         base.camera.setHpr(0, 0, 0)  # Set the camera orientation
 
+        # Setup collision detection for mouse clicks
+        pickerNode = CollisionNode("mouseRay")
+        pickerNP = base.camera.attachNewNode(pickerNode)
+        pickerNode.setFromCollideMask(GeomNode.getDefaultCollideMask())
+        self.pickerRay = CollisionRay()
+        pickerNode.addSolid(self.pickerRay)
+        self.collisionHandler = CollisionHandlerQueue()
+        self.collisionTraverser = CollisionTraverser('mouseTraverser')
+        base.cTrav = self.collisionTraverser
+        self.collisionTraverser.addCollider(pickerNP, self.collisionHandler)
+
         # Time speed up factor for animation.
         self.speed = 1
         self.zoom = 8
@@ -177,14 +193,22 @@ class World(DirectObject):
         self.satellites  : dict[str, PandaNode]= {}
         self.sat_intervals : dict[str, PositionUpdate] = {}
         self.sat_entries = []
+        self.selected_sat = None
         self.update_q = queue.Queue()
         self.setCameraPos()
         self.time = OnscreenText(text="time", 
                                 parent=base.a2dTopLeft,
                                 align=TextNode.A_left, 
-                                fg=(1,1,1,1),
+                                fg=(0,0,0,1),
                                 pos=(0.1,-0.1),
                                 scale=.07, style=1, mayChange=True)
+        self.info = OnscreenText(text="", 
+                                parent=base.a2dTopLeft,
+                                align=TextNode.A_left, 
+                                fg=(0,0,0,1),
+                                pos=(0.1,-0.2),
+                                scale=.07, style=1, mayChange=True)
+
 
     def setCameraPos(self):
         altitude = 6373 + self.zoom**2 * 500
@@ -232,6 +256,7 @@ class World(DirectObject):
         self.accept("+", self.zoomIn)
         self.accept("-", self.zoomOut)
         self.accept("space", self.togglePause)
+        self.accept("mouse1", self.clickTarget)
         self.heading = 0
         self.pitch = 0
         self.t = threading.Thread(
@@ -244,6 +269,26 @@ class World(DirectObject):
 
     def setView(self):
         self.base.setHpr(self.heading, self.pitch, 0)
+
+    def clickTarget(self):
+        if base.mouseWatcherNode.hasMouse():
+            mpos = base.mouseWatcherNode.getMouse()
+            if self.selected_sat is not None:
+                self.selected_sat.setColor(1,1,0,1.0)
+                self.selected_sat = None
+                self.info.setText("")
+
+            self.pickerRay.setFromLens(base.camNode, mpos.x, mpos.y)
+            self.collisionTraverser.traverse(base.render)
+
+            if self.collisionHandler.getNumEntries() > 0:
+                self.collisionHandler.sortEntries()
+                pickedObj = self.collisionHandler.getEntry(0).getIntoNodePath()
+                pickedObj = pickedObj.findNetTag('nametag')
+                if not pickedObj.isEmpty():
+                    self.info.setText(pickedObj.getTag('nametag'))
+                    pickedObj.setColor(0,1,0,1.0)
+                    self.selected_sat = pickedObj
 
     def zoomIn(self):
         if self.zoom > 1:
@@ -295,6 +340,8 @@ class World(DirectObject):
             sat = base.loader.loadModel("models/planet_sphere")
             sat.reparentTo(self.base)
             sat.setScale(self.get_sat_size_scale())
+            sat.setTag('nametag', sat_entry.name)
+            sat.setColor(1,1,0,1.0)
             self.satellites[sat_entry.name] = sat
         # Load the Earth
         self.earth = base.loader.loadModel("models/planet_sphere")
@@ -341,7 +388,7 @@ class World(DirectObject):
  
 
     def gLoop(self, task):
-        while not self.update_q.empty():
+        while not self.update_q.empty() and not vtime_paused:
             self.processPositionUpdate(self.update_q.get())
         return Task.cont
 
