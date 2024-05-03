@@ -94,13 +94,17 @@ def generate_positions(update_q: queue.Queue, sat_entries):
         if first:
             geo = Geocentric([1, 0, 0], t=sf_time_now)
             lat, lon = wgs84.latlon_of(geo)
-            update = PositionUpdate("earth", (), lon.degrees, True, time_now)
+            # Calculate a magic number that seems to align with the image we use??
+            rotate = 163 - lon.degrees
+            update = PositionUpdate("earth", (), rotate, True, time_now)
             update_q.put(update)
     
         # Create future position
         geo = Geocentric([1, 0, 0], t=sf_time_future)
         lat, lon = wgs84.latlon_of(geo)
-        update = PositionUpdate("earth", (), lon.degrees, False, time_future)
+        # Calculate a magic number that seems to align with the image we use??
+        rotate = 163 - lon.degrees
+        update = PositionUpdate("earth", (), rotate, False, time_future)
         update_q.put(update)
 
         # Generate position for each satellite
@@ -357,18 +361,20 @@ class World(DirectObject):
     def processPositionUpdate(self, update: PositionUpdate):
         self.time.setText(vtime_now().isoformat(sep=' ', timespec="seconds"))
         if update.name == "earth":
-            # Calculate a magic number that seems to align with the image we use??
-            rotate = 163 - update.rotation
-            print("rotate earth: %d degrees" % rotate)
+            print("rotate earth: %d degrees" % update.rotation)
             if update.now:
-                self.earth.setHpr(rotate, 0, 0)
+                self.earth.setHpr(update.rotation, 0, 0)
             else:
                 interval = self.sat_intervals.get(update.name)
                 if interval is not None:
                     interval.pause()
                 time_now = vtime_now()
                 delta = update.time - time_now
-                interval = self.earth.hprInterval(delta.seconds / TIME_RATE, LVecBase3(rotate, 0, 0))
+                # Update position to avoid spinning the wrong way when going from 359 to 0
+                current_rotation = self.earth.getHpr()[0]
+                if current_rotation > update.rotation:
+                    self.earth.setHpr(current_rotation - 360, 0, 0)
+                interval = self.earth.hprInterval(delta.seconds / TIME_RATE, LVecBase3(update.rotation, 0, 0))
                 interval.start()
                 self.sat_intervals[update.name] = interval
  
