@@ -21,8 +21,10 @@ import time
 import threading
 
 from panda3d.core import PandaNode
+from panda3d.core import TextNode
 from panda3d.core import Point3
 from panda3d.core import LVecBase3
+from direct.gui.DirectGui import OnscreenText
 from direct.showbase.ShowBase import ShowBase
 from direct.showbase.DirectObject import DirectObject
 from direct.task import Task
@@ -105,7 +107,11 @@ def generate_positions(update_q: queue.Queue, sat_entries):
 
             # Pause every 100 calculations
             if count % 100 == 0:
-                time.sleep(0)
+                duration = 0
+                if len(sat_entries) > 100:
+                    # Spread out update generation throughout the interval.
+                    duration = future_seconds * 100 / len(sat_entries) / TIME_RATE
+                time.sleep(duration)
                 recalc_time = True
 
             while update_q.qsize() > len(sat_entries):
@@ -175,6 +181,12 @@ class World(DirectObject):
         self.sat_entries = []
         self.update_q = queue.Queue()
         self.setCameraPos()
+        self.time = OnscreenText(text="time", 
+                                parent=base.a2dTopLeft,
+                                align=TextNode.A_left, 
+                                fg=(1,1,1,1),
+                                pos=(0.1,-0.1),
+                                scale=.07, style=1, mayChange=True)
 
     def setCameraPos(self):
         altitude = 6373 + self.zoom**2 * 500
@@ -286,6 +298,7 @@ class World(DirectObject):
         self.earth.setScale(self.earth_size_scale)
 
     def processPositionUpdate(self, update: PositionUpdate):
+        self.time.setText(vtime_now().isoformat(sep=' ', timespec="seconds"))
         if update.name == "earth":
             # Calculate a magic number that seems to align with the image we use??
             rotate = 163 - update.rotation
