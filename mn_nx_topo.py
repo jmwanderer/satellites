@@ -48,6 +48,37 @@ class NetxTopo(mininet.topo.Topo):
 
 
 
+OSPF_TEMPLATE = """
+hostname {name}
+log syslog informational
+ip forwarding
+no ipv6 forwarding
+service integrated-vtysh-config
+!
+router ospf
+ ospf router-id {ip}
+{networks}
+exit
+!
+"""
+
+OSPF_NW_TEMPLATE = """ network {network} area 0.0.0.0"""
+
+def create_ospf_config(graph: networkx.Graph, name: str) -> str:
+    node = graph.nodes[name]
+    ip = node["ip"]
+    networks = []
+    for neighbor in g.adj[name]:
+        edge = g.adj[name][neighbor]
+        networks.append(edge["ip"][name])
+
+    networks_str = []
+    for network in networks:
+        networks_str.append(OSPF_NW_TEMPLATE.format(network=format(network)))
+
+    return OSPF_TEMPLATE.format(name=name,
+                                ip=format(ip),
+                                networks='\n'.join(networks_str))
 
 
 
@@ -58,9 +89,10 @@ if __name__ == "__main__":
     topo = NetxTopo(graph)
     topo.build()
 
-
-
-
+    for name, node in  graph.nodes.items():
+        config = create_ospf_config(graph, name)
+        print(config)
+        print()
 
 
 

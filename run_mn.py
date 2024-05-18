@@ -3,10 +3,15 @@ from mininet.net import Mininet
 from mininet.log import setLogLevel, info
 from mininet.cli import CLI
 
+# TODO:
+# - Run frr deamons
+# - Create configs for frr daemons
+
 import networkx
 import mn_nx_topo
 import forty_forty_topo
 import topo_annotate
+
 
 def run():
     graph = networkx.Graph()
