@@ -47,13 +47,14 @@ class PositionUpdate:
 
 
 done = False
-TIME_RATE=60
+TIME_RATE = 60
 
 # Global variables accessed by both threads, not protected by a mutex
 # As currently structured, this should not cause a problem
 last_time_sample: datetime.datetime = datetime.datetime.now(tz=datetime.UTC)
 current_vtime: datetime.datetime = last_time_sample
 vtime_paused: bool = False
+
 
 def vtime_now() -> datetime.datetime:
     global last_time_sample
@@ -68,15 +69,18 @@ def vtime_now() -> datetime.datetime:
         current_vtime += delta
     return current_vtime
 
+
 def pause_vtime():
     global vtime_paused
     vtime_paused = True
+
 
 def resume_vtime():
     global last_time_sample
     global vtime_paused
     last_time_sample = datetime.datetime.now(tz=datetime.UTC)
     vtime_paused = False
+
 
 def generate_positions(update_q: queue.Queue, sat_entries):
     ts = load.timescale()
@@ -98,7 +102,7 @@ def generate_positions(update_q: queue.Queue, sat_entries):
             rotate = 163 - lon.degrees
             update = PositionUpdate("earth", (), rotate, True, time_now)
             update_q.put(update)
-    
+
         # Create future position
         geo = Geocentric([1, 0, 0], t=sf_time_future)
         lat, lon = wgs84.latlon_of(geo)
@@ -117,7 +121,9 @@ def generate_positions(update_q: queue.Queue, sat_entries):
                 duration = 0
                 if len(sat_entries) > 100:
                     # Spread out update generation throughout the interval.
-                    duration = (future_seconds * 50 / len(sat_entries) / TIME_RATE) * 0.9
+                    duration = (
+                        future_seconds * 50 / len(sat_entries) / TIME_RATE
+                    ) * 0.9
                 time.sleep(duration)
                 recalc_time = True
 
@@ -127,25 +133,29 @@ def generate_positions(update_q: queue.Queue, sat_entries):
                 recalc_time = True
 
             if recalc_time:
-               # Recalculate time values after potentially sleeping
-               recalc_time = False
-               time_now = vtime_now()
-               time_future = time_now + delta
-               sf_time_now = ts.from_datetime(time_now)
-               sf_time_future = ts.from_datetime(time_future)
- 
-            #print(f"Gen Pos Name: {sat.name}")
+                # Recalculate time values after potentially sleeping
+                recalc_time = False
+                time_now = vtime_now()
+                time_future = time_now + delta
+                sf_time_now = ts.from_datetime(time_now)
+                sf_time_future = ts.from_datetime(time_future)
+
+            # print(f"Gen Pos Name: {sat.name}")
             if first:
                 # Create initial position
                 geo = sat.at(sf_time_now)
                 if not math.isnan(geo.position.km[0]):
-                    update = PositionUpdate(sat.name, geo.position.km, 0, True, time_now)
+                    update = PositionUpdate(
+                        sat.name, geo.position.km, 0, True, time_now
+                    )
                     update_q.put(update)
 
             # Create future position
             geo = sat.at(sf_time_future)
             if not math.isnan(geo.position.km[0]):
-                update = PositionUpdate(sat.name, geo.position.km, 0, False, time_future)
+                update = PositionUpdate(
+                    sat.name, geo.position.km, 0, False, time_future
+                )
                 update_q.put(update)
             count += 1
 
@@ -153,11 +163,11 @@ def generate_positions(update_q: queue.Queue, sat_entries):
         first = False
         print(f"vtime_now: {vtime_now()}")
         print(f"time_future: {earliest_time_future}")
-        delta = (earliest_time_future - vtime_now())
+        delta = earliest_time_future - vtime_now()
         print(f"delta: {delta}")
-        sleep_time = delta / TIME_RATE 
+        sleep_time = delta / TIME_RATE
         print(f"sleep time {sleep_time}")
-        sleep_seconds = max(0,sleep_time.total_seconds() - 0.2)
+        sleep_seconds = max(0, sleep_time.total_seconds() - 0.2)
         print(f"sleep seconds {sleep_seconds}")
         time.sleep(sleep_seconds)
 
@@ -178,7 +188,7 @@ class World(DirectObject):
         self.pickerRay = CollisionRay()
         pickerNode.addSolid(self.pickerRay)
         self.collisionHandler = CollisionHandlerQueue()
-        self.collisionTraverser = CollisionTraverser('mouseTraverser')
+        self.collisionTraverser = CollisionTraverser("mouseTraverser")
         base.cTrav = self.collisionTraverser
         self.collisionTraverser.addCollider(pickerNP, self.collisionHandler)
 
@@ -194,25 +204,32 @@ class World(DirectObject):
         # Orbit height above earch 500km
         # Scale orbit above the earth
         self.pos_scale = self.earth_size_scale / 6373
-        self.satellites  : dict[str, PandaNode]= {}
-        self.sat_intervals : dict[str, PositionUpdate] = {}
+        self.satellites: dict[str, PandaNode] = {}
+        self.sat_intervals: dict[str, PositionUpdate] = {}
         self.sat_entries = []
         self.selected_sat = None
         self.update_q = queue.Queue()
         self.setCameraPos()
-        self.time = OnscreenText(text="time", 
-                                parent=base.a2dTopLeft,
-                                align=TextNode.A_left, 
-                                fg=(0,0,0,1),
-                                pos=(0.1,-0.1),
-                                scale=.07, style=1, mayChange=True)
-        self.info = OnscreenText(text="", 
-                                parent=base.a2dTopLeft,
-                                align=TextNode.A_left, 
-                                fg=(0,0,0,1),
-                                pos=(0.1,-0.2),
-                                scale=.07, style=1, mayChange=True)
-
+        self.time = OnscreenText(
+            text="time",
+            parent=base.a2dTopLeft,
+            align=TextNode.A_left,
+            fg=(0, 0, 0, 1),
+            pos=(0.1, -0.1),
+            scale=0.07,
+            style=1,
+            mayChange=True,
+        )
+        self.info = OnscreenText(
+            text="",
+            parent=base.a2dTopLeft,
+            align=TextNode.A_left,
+            fg=(0, 0, 0, 1),
+            pos=(0.1, -0.2),
+            scale=0.07,
+            style=1,
+            mayChange=True,
+        )
 
     def setCameraPos(self):
         altitude = 6373 + self.zoom**2 * 500
@@ -223,13 +240,13 @@ class World(DirectObject):
         base.camera.setPos(0, zoom, 0)  # Set the camera position (X, Y, Z)
         for name in self.satellites:
             self.satellites[name].setScale(self.get_sat_size_scale())
- 
-    URLS = { 
-            "kuiper" : "https://celestrak.org/NORAD/elements/gp.php?INTDES=2023-154",
-            "GPS" : "https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle",
-            "stations" : "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle",
-            "starlink" : "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle"
-            }
+
+    URLS = {
+        "kuiper": "https://celestrak.org/NORAD/elements/gp.php?INTDES=2023-154",
+        "GPS": "https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle",
+        "stations": "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle",
+        "starlink": "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle",
+    }
 
     def setup_elements(self, selection):
         if selection not in World.URLS:
@@ -278,7 +295,7 @@ class World(DirectObject):
         if base.mouseWatcherNode.hasMouse():
             mpos = base.mouseWatcherNode.getMouse()
             if self.selected_sat is not None:
-                self.selected_sat.setColor(1,1,0,1.0)
+                self.selected_sat.setColor(1, 1, 0, 1.0)
                 self.selected_sat = None
                 self.info.setText("")
 
@@ -288,10 +305,10 @@ class World(DirectObject):
             if self.collisionHandler.getNumEntries() > 0:
                 self.collisionHandler.sortEntries()
                 pickedObj = self.collisionHandler.getEntry(0).getIntoNodePath()
-                pickedObj = pickedObj.findNetTag('nametag')
+                pickedObj = pickedObj.findNetTag("nametag")
                 if not pickedObj.isEmpty():
-                    self.info.setText(pickedObj.getTag('nametag'))
-                    pickedObj.setColor(0,1,0,1.0)
+                    self.info.setText(pickedObj.getTag("nametag"))
+                    pickedObj.setColor(0, 1, 0, 1.0)
                     self.selected_sat = pickedObj
 
     def zoomIn(self):
@@ -330,7 +347,7 @@ class World(DirectObject):
                 interval.pause()
 
     def get_sat_size_scale(self) -> int:
-        # Increase scale with farther zoom settings. 
+        # Increase scale with farther zoom settings.
         # zoom 8 : multiplier = 1
         return self.sat_size_scale * (self.zoom / 8)
 
@@ -348,8 +365,8 @@ class World(DirectObject):
             sat = base.loader.loadModel("models/planet_sphere")
             sat.reparentTo(self.base)
             sat.setScale(self.get_sat_size_scale())
-            sat.setTag('nametag', sat_entry.name)
-            sat.setColor(1,1,0,1.0)
+            sat.setTag("nametag", sat_entry.name)
+            sat.setColor(1, 1, 0, 1.0)
             self.satellites[sat_entry.name] = sat
         # Load the Earth
         self.earth = base.loader.loadModel("models/planet_sphere")
@@ -359,7 +376,7 @@ class World(DirectObject):
         self.earth.setScale(self.earth_size_scale)
 
     def processPositionUpdate(self, update: PositionUpdate):
-        self.time.setText(vtime_now().isoformat(sep=' ', timespec="seconds"))
+        self.time.setText(vtime_now().isoformat(sep=" ", timespec="seconds"))
         if update.name == "earth":
             print("rotate earth: %d degrees" % update.rotation)
             if update.now:
@@ -374,10 +391,12 @@ class World(DirectObject):
                 current_rotation = self.earth.getHpr()[0]
                 if current_rotation > update.rotation:
                     self.earth.setHpr(current_rotation - 360, 0, 0)
-                interval = self.earth.hprInterval(delta.seconds / TIME_RATE, LVecBase3(update.rotation, 0, 0))
+                interval = self.earth.hprInterval(
+                    delta.seconds / TIME_RATE, LVecBase3(update.rotation, 0, 0)
+                )
                 interval.start()
                 self.sat_intervals[update.name] = interval
- 
+
             return
 
         satellite = self.satellites[update.name]
@@ -395,12 +414,12 @@ class World(DirectObject):
             interval = satellite.posInterval(delta.seconds / TIME_RATE, Point3(x, y, z))
             interval.start()
             self.sat_intervals[update.name] = interval
- 
 
     def gLoop(self, task):
         while not self.update_q.empty() and not vtime_paused:
             self.processPositionUpdate(self.update_q.get())
         return Task.cont
+
 
 selection = "kuiper"
 if len(sys.argv) > 1:
