@@ -4,13 +4,13 @@ Create a LEO satellite network topology.
 
 import networkx
 
-num_rings = 40
-num_ring_nodes = 40
+NUM_RINGS = 40
+NUM_RING_NODES = 40
 
 def get_node_name(ring_num, node_num):
     return f"R{ring_num}_{node_num}"
 
-def create_ring(graph, ring_num):
+def create_ring(graph, ring_num, num_ring_nodes):
     prev_node_name = None
     for node_num in range(num_ring_nodes):
         # Create a node in the ring
@@ -27,28 +27,28 @@ def create_ring(graph, ring_num):
         graph.add_edge(prev_node_name, get_node_name(ring_num, 0))
         graph.edges[prev_node_name, get_node_name(ring_num,0 )]['inter_ring'] = False
 
-def connect_rings(graph, ring1, ring2):
+def connect_rings(graph, ring1, ring2, num_ring_nodes):
     for node_num in range(num_ring_nodes):
         node1_name = get_node_name(ring1, node_num)
         node2_name = get_node_name(ring2, node_num)
         graph.add_edge(node1_name, node2_name)
         graph.edges[node1_name, node2_name]['inter_ring'] = True
 
-def create_network(graph):
+def create_network(graph, num_rings=NUM_RINGS, num_ring_nodes=NUM_RING_NODES):
     prev_ring_num = None
     for ring_num in range(num_rings):
-        create_ring(graph, ring_num)
+        create_ring(graph, ring_num, num_ring_nodes)
         if prev_ring_num is not None:
-            connect_rings(graph, prev_ring_num, ring_num)
+            connect_rings(graph, prev_ring_num, ring_num, num_ring_nodes)
         prev_ring_num = ring_num
     if prev_ring_num is not None:
-        connect_rings(graph, prev_ring_num, 0)
+        connect_rings(graph, prev_ring_num, 0, num_ring_nodes)
     
     # Set all edges to up
     for edge_name, edge in graph.edges.items():
         edge['up'] = True
 
-def down_inter_ring_links(graph, node_num_list):
+def down_inter_ring_links(graph, node_num_list, num_rings=NUM_RINGS):
     for node_num in node_num_list:
         for ring_num in range(num_rings):
             node_name = get_node_name(ring_num, node_num)
