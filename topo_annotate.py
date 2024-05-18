@@ -46,6 +46,8 @@ def annotate_graph(graph: networkx.Graph):
 
     for name, node in graph.nodes.items():
         node['ospf'] = create_ospf_config(graph, name)
+        node['vtysh'] = create_vtysh_config(name)
+        node['daemons'] = create_daemons_config()
 
 
 OSPF_TEMPLATE = """
@@ -79,6 +81,19 @@ def create_ospf_config(graph: networkx.Graph, name: str) -> str:
     return OSPF_TEMPLATE.format(name=name,
                                 ip=format(ip),
                                 networks='\n'.join(networks_str))
+
+def create_daemons_config() -> str:
+    return """#
+ospfd=yes
+vtysh_enable=yes
+zebra_options="  -A 127.0.0.1 -s 90000000"
+mgmtd_options="  -A 127.0.0.1"
+ospfd_options="  -A 127.0.0.1"
+    """
+
+def create_vtysh_config(name: str) -> str:
+    return """service integrated-vtysh-config
+hostname {name}""".format(name=name)
 
 
 def dump_graph(graph: networkx.Graph):

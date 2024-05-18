@@ -22,7 +22,7 @@ def run():
 
     net = Mininet(topo=topo)
     net.start()
-    topo.start_routers()
+    topo.start_routers(net)
     CLI(net)
     net.stop()
 
