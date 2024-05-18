@@ -28,8 +28,8 @@ def annotate_graph(graph: networkx.Graph):
         edge = graph.edges[n1, n2]
         ips = list(edge['ip'].hosts())
         graph.adj[n1][n2]['ip'] = {}
-        graph.adj[n1][n2]['ip'][n1] = ips[0]
-        graph.adj[n2][n1]['ip'][n2] = ips[1]
+        graph.adj[n1][n2]['ip'][n1] = ipaddress.IPv4Interface((ips[0].packed, 30))
+        graph.adj[n2][n1]['ip'][n2] = ipaddress.IPv4Interface((ips[1].packed, 30))
 
         # Set interface names for each end of an edge
         c = graph.nodes[n1]['inf_count'] + 1
