@@ -44,6 +44,42 @@ def annotate_graph(graph: networkx.Graph):
         graph.adj[n1][n2]['intf'][n1] = intf1
         graph.adj[n2][n1]['intf'][n2] = intf2
 
+    for name, node in graph.nodes.items():
+        node['ospf'] = create_ospf_config(graph, name)
+
+
+OSPF_TEMPLATE = """
+hostname {name}
+log syslog informational
+ip forwarding
+no ipv6 forwarding
+service integrated-vtysh-config
+!
+router ospf
+ ospf router-id {ip}
+{networks}
+exit
+!
+"""
+
+OSPF_NW_TEMPLATE = """ network {network} area 0.0.0.0"""
+
+def create_ospf_config(graph: networkx.Graph, name: str) -> str:
+    node = graph.nodes[name]
+    ip = node["ip"]
+    networks = []
+    for neighbor in graph.adj[name]:
+        edge = graph.adj[name][neighbor]
+        networks.append(edge["ip"][name])
+
+    networks_str = []
+    for network in networks:
+        networks_str.append(OSPF_NW_TEMPLATE.format(network=format(network)))
+
+    return OSPF_TEMPLATE.format(name=name,
+                                ip=format(ip),
+                                networks='\n'.join(networks_str))
+
 
 def dump_graph(graph: networkx.Graph):
     for name, node in graph.nodes.items():

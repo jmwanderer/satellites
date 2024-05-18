@@ -7,35 +7,52 @@ import topo_annotate
 
 class LinuxRouter(mininet.node.Node):
     def config(self, **params):
+        # TODO - get frr config and save to frr config directory
+        print(params["ospf"])
         super(LinuxRouter, self).config(**params)
 
     def terminate(self):
+        print("stop router")
         super(LinuxRouter, self).terminate()
+
+    def start(self):
+        # Start frr daemons
+        self.cmd("ls")
+        pass
+
+    def stop(self, deleteIntfs=False):
+        # Cleanup and stop frr daemons
+        super(LinuxRouter, self).stop(deleteIntfs)
 
 
 class NetxTopo(mininet.topo.Topo):
     def __init__(self, graph: networkx.Graph):
         self.graph = graph
+        self.routers: dict[LinuxRouter] = {}
         super(NetxTopo, self).__init__()
 
-    def build(self, **_opts):
-        # Create routers
-        routers = {}
+    def start_routers(self):
+        for router in self.routers.values():
+            router.start()
 
+    def build(self, **_opts):
+        # TODO: double check base class - protected?
+        # Create routers
         for name, node in self.graph.nodes.items():
             ip = node["ip"]
-            router = self.addHost(name, cls=LinuxRouter, ip=format(ip))
-            routers[name] = router
+            router = self.addHost(name, cls=LinuxRouter, ip=format(ip),
+                                  ospf=node["ospf"])
+            self.routers[name] = router
 
         # Create links between routers
         for name, edge in self.graph.edges.items():
             r1_name = name[0]
-            router1 = routers[r1_name]
+            router1 = self.routers[r1_name]
             ip1 = edge["ip"][r1_name]
             intf1 = edge["intf"][r1_name]
 
             r2_name = name[1]
-            router2 = routers[r2_name]
+            router2 = self.routers[r2_name]
             ip2 = edge["ip"][r2_name]
             intf2 = edge["intf"][r2_name]
 
@@ -48,40 +65,6 @@ class NetxTopo(mininet.topo.Topo):
 
 
 
-OSPF_TEMPLATE = """
-hostname {name}
-log syslog informational
-ip forwarding
-no ipv6 forwarding
-service integrated-vtysh-config
-!
-router ospf
- ospf router-id {ip}
-{networks}
-exit
-!
-"""
-
-OSPF_NW_TEMPLATE = """ network {network} area 0.0.0.0"""
-
-def create_ospf_config(graph: networkx.Graph, name: str) -> str:
-    node = graph.nodes[name]
-    ip = node["ip"]
-    networks = []
-    for neighbor in graph.adj[name]:
-        edge = graph.adj[name][neighbor]
-        networks.append(edge["ip"][name])
-
-    networks_str = []
-    for network in networks:
-        networks_str.append(OSPF_NW_TEMPLATE.format(network=format(network)))
-
-    return OSPF_TEMPLATE.format(name=name,
-                                ip=format(ip),
-                                networks='\n'.join(networks_str))
-
-
-
 if __name__ == "__main__":
     graph = networkx.Graph()
     forty_forty_topo.create_network(graph, 8, 8)
@@ -90,8 +73,7 @@ if __name__ == "__main__":
     topo.build()
 
     for name, node in  graph.nodes.items():
-        config = create_ospf_config(graph, name)
-        print(config)
+        print(node['ospf'])
         print()
 
 
