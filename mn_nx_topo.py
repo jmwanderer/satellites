@@ -68,8 +68,8 @@ def create_ospf_config(graph: networkx.Graph, name: str) -> str:
     node = graph.nodes[name]
     ip = node["ip"]
     networks = []
-    for neighbor in g.adj[name]:
-        edge = g.adj[name][neighbor]
+    for neighbor in graph.adj[name]:
+        edge = graph.adj[name][neighbor]
         networks.append(edge["ip"][name])
 
     networks_str = []
