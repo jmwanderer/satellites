@@ -74,8 +74,16 @@ class NetxTopo(mininet.topo.Topo):
         # TODO: double check base class - protected?
         # Create routers
         for name, node in self.graph.nodes.items():
-            ip = node["ip"]
-            self.addHost(name, cls=LinuxRouter, ip=format(ip),
+            #ip = node["ip"]
+            # Find min intf
+            intf = min([ e['intf'][name] for e in self.graph.adj[name].values()])
+            print(f"min intf {intf}")
+            for e in self.graph.adj[name].values():
+                if e['intf'][name] == intf:
+                    ip = e['ip'][name]
+
+            self.addHost(name, cls=LinuxRouter, 
+                         ip=format(ip),
                          ospf=node["ospf"],
                          vtysh=node["vtysh"],
                          daemons=node["daemons"])
