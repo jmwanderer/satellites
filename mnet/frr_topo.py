@@ -75,7 +75,8 @@ class FrrRouter(mininet.node.Node):
     def start(self):
         # Start frr daemons
         print(f"start router {self.name}")
-        self.cmd(f"/usr/lib/frr/frrinit.sh start '{self.name}'")
+        output = self.cmd(f"/usr/lib/frr/frrinit.sh start '{self.name}'")
+        print(output)
 
     def stop(self, deleteIntfs=False):
         # Do we need this? or just terminate?
@@ -98,9 +99,12 @@ class NetxTopo(mininet.topo.Topo):
     def build(self, **_opts):
         # Create routers
         for name, node in self.graph.nodes.items():
-            ip = node["ip"]
+            ip = node.get("ip")
+            if ip is not None:
+                ip=format(ip)
+
             self.addHost(name, cls=FrrRouter, 
-                         ip=format(ip),
+                         ip=ip,
                          ospf=node["ospf"],
                          vtysh=node["vtysh"],
                          daemons=node["daemons"])

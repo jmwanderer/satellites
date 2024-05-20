@@ -78,15 +78,20 @@ OSPF_NW_TEMPLATE = """ network {network} area 0.0.0.0"""
 
 def create_ospf_config(graph: networkx.Graph, name: str) -> str:
     node = graph.nodes[name]
-    ip = node["ip"]
+    ip = node.get("ip")  # May be None
     networks = []
+    networks_str = []
+
+    if ip is not None:
+        network = ipaddress.IPv4Network((ip, 32))
+        networks_str.append(OSPF_NW_TEMPLATE.format(network=format(network)))
+
     for neighbor in graph.adj[name]:
         edge = graph.adj[name][neighbor]
         networks.append(edge["ip"][name])
-
-    networks_str = []
-    network = ipaddress.IPv4Network((ip, 32))
-    networks_str.append(OSPF_NW_TEMPLATE.format(network=format(network)))
+        # Get one of the interface IPs for the router id
+        if ip is None:
+            ip = edge["ip"][name]
 
     for network in networks:
         networks_str.append(OSPF_NW_TEMPLATE.format(network=format(network)))
@@ -111,7 +116,13 @@ hostname {name}""".format(name=name)
 
 def dump_graph(graph: networkx.Graph):
     for name, node in graph.nodes.items():
-        print(f'node: {name} - {format(node["ip"])}')
+        ip = node.get('ip')
+        if ip is not None:
+            ip = format(ip)
+        else:
+            ip = ""
+
+        print(f'node: {name} - {ip}')
         for neighbor in graph.adj[name]:
             edge = graph.adj[name][neighbor]
             print(f'\t{format(edge["ip"][name])}  : {edge["intf"][name]} to {neighbor} ({format(edge["ip"][neighbor])})')
