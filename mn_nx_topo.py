@@ -5,6 +5,8 @@ import networkx
 import mininet.topo
 import mininet.node
 import mininet.net
+import mininet.link
+import mininet.util
 
 import forty_forty_topo
 import topo_annotate
@@ -18,6 +20,16 @@ import topo_annotate
 class LinuxRouter(mininet.node.Node):
     CFG_DIR="/etc/frr/{node}"
     LOG_DIR="/var/log/frr/{node}"
+
+    def __init__(self, name, **params):
+        mininet.node.Node.__init__(self, name, **params)
+        # Make a default interface
+        mininet.util.quietRun('ip link add name loop type dummy')
+        self.loopIntf = mininet.link.Intf(name='loop', node=self)
+
+    def defaultIntf(self):
+        return self.loopIntf
+
 
     def config(self, **params):
         # Get frr config and save to frr config directory
@@ -34,6 +46,10 @@ class LinuxRouter(mininet.node.Node):
         self.write_cfg_file(f"{cfg_dir}/frr.conf", params["ospf"])
 
         super(LinuxRouter, self).config(**params)
+
+    def setIP(self, ip):
+        # Make the default interface have a /31 mask
+        mininet.node.Node.setIP(self, ip, prefixLen=31)
 
     def write_cfg_file(self, file_path: str, contents: str) -> None:
         print(f"write {file_path}")
@@ -71,16 +87,15 @@ class NetxTopo(mininet.topo.Topo):
             router.start()
 
     def build(self, **_opts):
-        # TODO: double check base class - protected?
         # Create routers
         for name, node in self.graph.nodes.items():
-            #ip = node["ip"]
+            ip = node["ip"]
             # Find min intf
-            intf = min([ e['intf'][name] for e in self.graph.adj[name].values()])
-            print(f"min intf {intf}")
-            for e in self.graph.adj[name].values():
-                if e['intf'][name] == intf:
-                    ip = e['ip'][name]
+            #intf = min([ e['intf'][name] for e in self.graph.adj[name].values()])
+            #print(f"min intf {intf}")
+            #for e in self.graph.adj[name].values():
+            #    if e['intf'][name] == intf:
+            #        ip = e['ip'][name]
 
             self.addHost(name, cls=LinuxRouter, 
                          ip=format(ip),

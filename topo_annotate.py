@@ -12,7 +12,7 @@ def annotate_graph(graph: networkx.Graph):
         node['inf_count'] = 0
         node['number'] = count
         ip = 0x0a010000 + count
-        count += 1
+        count += 2
         node['ip'] = ipaddress.IPv4Address(ip)
 
     count = 1
@@ -52,6 +52,7 @@ def annotate_graph(graph: networkx.Graph):
 
 OSPF_TEMPLATE = """
 hostname {name}
+frr defaults datacenter
 log syslog informational
 ip forwarding
 no ipv6 forwarding
@@ -75,6 +76,9 @@ def create_ospf_config(graph: networkx.Graph, name: str) -> str:
         networks.append(edge["ip"][name])
 
     networks_str = []
+    network = ipaddress.IPv4Network((ip, 32))
+    networks_str.append(OSPF_NW_TEMPLATE.format(network=format(network)))
+
     for network in networks:
         networks_str.append(OSPF_NW_TEMPLATE.format(network=format(network)))
 
