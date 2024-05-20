@@ -64,6 +64,21 @@ topology.
 - frr_config_topo: Generate FRR network configurations for a networkx topology
 - test_large_frr: Generate, configure, and exercise a large torus topology
 
+Exercise a large torus topology, generate routes, and trace paths:
+```
+python torus_topo.py
+```
+
+Exercise FRR network configuration generation on a small network:
+```
+python frr_config_topo.py
+```
+
+Generate a large torus topology and generate FRR network config information
+```
+python test_large_frr.py
+```
+
 
 # Mininet Emulation
 Run an mininet emulation of an FRR based network toplogy.
@@ -73,7 +88,7 @@ See [mininet_frr](http://github.com/jmwanderer/mininet_frr)
 
 
 ```
-sudo python mininet/run_mn.py
+sudo python -m mnet.run_mn
 ```
 
 The network currently just runs an OSPF daemon on each node to exchange.
