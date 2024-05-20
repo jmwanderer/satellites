@@ -9,7 +9,7 @@ import mininet.link
 import mininet.util
 
 import torus_topo
-import topo_annotate
+import frr_config_topo
 
 
 class FrrRouter(mininet.node.Node):
@@ -128,7 +128,7 @@ class NetxTopo(mininet.topo.Topo):
 if __name__ == "__main__":
     graph = networkx.Graph()
     torus_topo.create_network(graph, 8, 8)
-    topo_annotate.annotate_graph(graph)
+    frr_config_topo.annotate_graph(graph)
     topo = NetxTopo(graph)
     topo.build()
 

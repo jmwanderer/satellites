@@ -15,7 +15,7 @@ from mininet.cli import CLI
 import networkx
 import torus_topo
 import frr_config_topo
-import mininet.frr_topo
+import mnet.frr_topo
 
 def run():
     # Create a networkx graph annoted with FRR configs
@@ -25,7 +25,7 @@ def run():
     frr_config_topo.dump_graph(graph)
 
     # Use the networkx graph to build a mininet topology
-    topo = mininet.frr_topo.NetxTopo(graph)
+    topo = mnet.frr_topo.NetxTopo(graph)
 
     # Run mininet
     net = Mininet(topo=topo)
