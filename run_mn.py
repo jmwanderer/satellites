@@ -9,13 +9,13 @@ from mininet.cli import CLI
 
 import networkx
 import mn_nx_topo
-import forty_forty_topo
+import torus_topo
 import topo_annotate
 
 
 def run():
     graph = networkx.Graph()
-    forty_forty_topo.create_network(graph, 2, 2)
+    torus_topo.create_network(graph, 2, 2)
     topo_annotate.annotate_graph(graph)
     topo_annotate.dump_graph(graph)
     topo = mn_nx_topo.NetxTopo(graph)

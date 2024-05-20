@@ -8,7 +8,7 @@ import mininet.net
 import mininet.link
 import mininet.util
 
-import forty_forty_topo
+import torus_topo
 import topo_annotate
 
 # TODO:
@@ -125,7 +125,7 @@ class NetxTopo(mininet.topo.Topo):
 
 if __name__ == "__main__":
     graph = networkx.Graph()
-    forty_forty_topo.create_network(graph, 8, 8)
+    torus_topo.create_network(graph, 8, 8)
     topo_annotate.annotate_graph(graph)
     topo = NetxTopo(graph)
     topo.build()

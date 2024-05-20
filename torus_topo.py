@@ -1,5 +1,8 @@
 """
-Create a LEO satellite network topology.
+Create a torus network topology.
+
+This is a series of connected rings.
+Include test code to generate route maps and test connectivity.
 """
 
 import networkx
@@ -49,6 +52,7 @@ def create_network(graph, num_rings=NUM_RINGS, num_ring_nodes=NUM_RING_NODES):
         edge['up'] = True
 
 def down_inter_ring_links(graph, node_num_list, num_rings=NUM_RINGS):
+    # Set the specified links to down
     for node_num in node_num_list:
         for ring_num in range(num_rings):
             node_name = get_node_name(ring_num, node_num)
