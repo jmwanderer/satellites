@@ -1,4 +1,9 @@
 #!/usr/bin/python3
+
+"""
+Run a mininet instance of FRR routers in a torus topology.
+"""
+
 from mininet.net import Mininet
 from mininet.log import setLogLevel, info
 from mininet.cli import CLI
@@ -8,18 +13,21 @@ from mininet.cli import CLI
 # - Create configs for frr daemons
 
 import networkx
-import mn_nx_topo
 import torus_topo
 import frr_config_topo
-
+import mininet.frr_topo
 
 def run():
+    # Create a networkx graph annoted with FRR configs
     graph = networkx.Graph()
     torus_topo.create_network(graph, 2, 2)
     frr_config_topo.annotate_graph(graph)
     frr_config_topo.dump_graph(graph)
-    topo = mn_nx_topo.NetxTopo(graph)
 
+    # Use the networkx graph to build a mininet topology
+    topo = mininet.frr_topo.NetxTopo(graph)
+
+    # Run mininet
     net = Mininet(topo=topo)
     net.start()
     topo.start_routers(net)

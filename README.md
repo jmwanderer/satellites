@@ -55,6 +55,35 @@ Generate satellite positions with Skyfield and CTSC
 python sat_pos_samples.py
 ```
 
+# Network Topology
+Utilities to explore a possible network topology of a satellite network where each
+satellite is a router with 4 ports connecting to neighboring satellites in a torus 
+topology.
+
+- torus_topo: Generate a networkx graph of a connected set of rings (default 40x40)
+- frr_config_topo: Generate FRR network configurations for a networkx topology
+- test_large_frr: Generate, configure, and exercise a large torus topology
+
+
+# Mininet Emulation
+Run an mininet emulation of an FRR based network toplogy.
+
+Must be run as root in a Mininet/FRR package.
+See [mininet_frr](http://github.com/jmwanderer/mininet_frr)
+
+
+```
+sudo python mininet/run_mn.py
+```
+
+The network currently just runs an OSPF daemon on each node to exchange.
+Possible plans include:
+- Adding network link up and down events as satellites move in orbit
+- Adding hosts to connect as staellites move overhead
+- Adding an OF controller to handle host connectivity
+- Using an agent on host and satellites for control and connectivity testing
+
+
 # Useful Information
 
 - [Skyfield Library](https://rhodesmill.org/skyfield/earth-satellites.html)

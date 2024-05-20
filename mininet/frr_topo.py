@@ -11,33 +11,42 @@ import mininet.util
 import torus_topo
 import topo_annotate
 
-# TODO:
-# Change linux router to FrrRouter
-# Pick a better name for this module (and others)
-# Fix assignment of main IP for first eth0 - want on lo I think.
-#  mininet doesn't make this easy???
 
-class LinuxRouter(mininet.node.Node):
+class FrrRouter(mininet.node.Node):
+    """
+    Support an FRR router under mininet.
+    - handles the the FRR config files, starting and stopping FRR.
+
+    Includes an optional loopback interface with a /31 subnet mask
+    Does not cleanup config files.
+    """
+
     CFG_DIR="/etc/frr/{node}"
     LOG_DIR="/var/log/frr/{node}"
 
     def __init__(self, name, **params):
         mininet.node.Node.__init__(self, name, **params)
-        # Make a default interface
-        mininet.util.quietRun('ip link add name loop type dummy')
-        self.loopIntf = mininet.link.Intf(name='loop', node=self)
+
+        # Handle an optional loopback interface
+        self.loopIntf = None
+
+        if params.get('ip') is not None:
+            # Make a default interface
+           mininet.util.quietRun('ip link add name loop type dummy')
+           self.loopIntf = mininet.link.Intf(name='loop', node=self)
 
     def defaultIntf(self):
-        return self.loopIntf
-
+        if self.loopIntf is not None:
+            return self.loopIntf
+        return super().defaultIntf()
 
     def config(self, **params):
         # Get frr config and save to frr config directory
-        cfg_dir = LinuxRouter.CFG_DIR.format(node=self.name)
+        cfg_dir = FrrRouter.CFG_DIR.format(node=self.name)
         print(f"create {cfg_dir}")
         print(self.cmd(f"sudo install -m 775 -o frr -g frrvty -d {cfg_dir}"))
 
-        log_dir = LinuxRouter.LOG_DIR.format(node=self.name)
+        log_dir = FrrRouter.LOG_DIR.format(node=self.name)
         print(f"create {log_dir}")
         print(self.cmd(f"sudo install -m 775 -o frr -g frr -d  {log_dir}"))
 
@@ -45,7 +54,7 @@ class LinuxRouter(mininet.node.Node):
         self.write_cfg_file(f"{cfg_dir}/daemons", params["daemons"])
         self.write_cfg_file(f"{cfg_dir}/frr.conf", params["ospf"])
 
-        super(LinuxRouter, self).config(**params)
+        super().config(**params)
 
     def setIP(self, ip):
         # Make the default interface have a /31 mask
@@ -58,21 +67,21 @@ class LinuxRouter(mininet.node.Node):
         os.chmod(file_path, 0o640)
         shutil.chown(file_path, "frr", "frr")
 
-
     def terminate(self):
-        print("stop router")
-        print(self.cmd(f"/usr/lib/frr/frrinit.sh stop '{self.name}'"))
-        super(LinuxRouter, self).terminate()
+        print(f"stop router {self.name}")
+        self.cmd(f"/usr/lib/frr/frrinit.sh stop '{self.name}'")
+        super().terminate()
 
     def start(self):
         # Start frr daemons
         print(f"start router {self.name}")
-        print(self.cmd(f"/usr/lib/frr/frrinit.sh start '{self.name}'"))
+        self.cmd(f"/usr/lib/frr/frrinit.sh start '{self.name}'")
 
     def stop(self, deleteIntfs=False):
+        # Do we need this? or just terminate?
         # Cleanup and stop frr daemons
         print(f"stop router {self.name}")
-        super(LinuxRouter, self).stop(deleteIntfs)
+        super().stop(deleteIntfs)
 
 
 class NetxTopo(mininet.topo.Topo):
@@ -90,14 +99,7 @@ class NetxTopo(mininet.topo.Topo):
         # Create routers
         for name, node in self.graph.nodes.items():
             ip = node["ip"]
-            # Find min intf
-            #intf = min([ e['intf'][name] for e in self.graph.adj[name].values()])
-            #print(f"min intf {intf}")
-            #for e in self.graph.adj[name].values():
-            #    if e['intf'][name] == intf:
-            #        ip = e['ip'][name]
-
-            self.addHost(name, cls=LinuxRouter, 
+            self.addHost(name, cls=FrrRouter, 
                          ip=format(ip),
                          ospf=node["ospf"],
                          vtysh=node["vtysh"],
