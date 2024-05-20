@@ -1,10 +1,19 @@
-import ipaddress
+"""
+Configure a network topology to function as a set of FRR routers.
 
+Generate IP addresses, interface names, and FRR configurations for a topology
+and mark up the topology graph with the information.
+
+Currently assumes all nodes run OSPF in one area.
+"""
+
+import ipaddress
 import networkx
 
 def annotate_graph(graph: networkx.Graph):
     """
-    Annotate a topology with IP address for each node and IP address and interface names for each edge.
+    Annotate a topology with IP address for each node and IP address and interface names 
+    for each edge.
     """
     count = 1
     for node in graph.nodes.values():

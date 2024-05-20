@@ -10,14 +10,14 @@ from mininet.cli import CLI
 import networkx
 import mn_nx_topo
 import torus_topo
-import topo_annotate
+import frr_config_topo
 
 
 def run():
     graph = networkx.Graph()
     torus_topo.create_network(graph, 2, 2)
-    topo_annotate.annotate_graph(graph)
-    topo_annotate.dump_graph(graph)
+    frr_config_topo.annotate_graph(graph)
+    frr_config_topo.dump_graph(graph)
     topo = mn_nx_topo.NetxTopo(graph)
 
     net = Mininet(topo=topo)
