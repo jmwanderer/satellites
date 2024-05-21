@@ -1,4 +1,5 @@
 import os
+import ipaddress
 import shutil
 
 import networkx
@@ -27,15 +28,12 @@ class FrrRouter(mininet.node.Node):
     def __init__(self, name, **params):
         mininet.node.Node.__init__(self, name, **params)
 
-        # Handle an optional loopback interface
+        # Optional loopback interface
         self.loopIntf = None
 
-        if params.get('ip') is not None:
-            # Make a default interface
-           mininet.util.quietRun('ip link add name loop type dummy')
-           self.loopIntf = mininet.link.Intf(name='loop', node=self)
-
     def defaultIntf(self):
+        # If we have a loopback, that is the default interface.
+        # Otherwise use mininet default behavior.
         if self.loopIntf is not None:
             return self.loopIntf
         return super().defaultIntf()
@@ -44,21 +42,32 @@ class FrrRouter(mininet.node.Node):
         # Get frr config and save to frr config directory
         cfg_dir = FrrRouter.CFG_DIR.format(node=self.name)
         print(f"create {cfg_dir}")
-        print(self.cmd(f"sudo install -m 775 -o frr -g frrvty -d {cfg_dir}"))
+        self.cmd(f"sudo install -m 775 -o frr -g frrvty -d {cfg_dir}")
 
         log_dir = FrrRouter.LOG_DIR.format(node=self.name)
         print(f"create {log_dir}")
-        print(self.cmd(f"sudo install -m 775 -o frr -g frr -d  {log_dir}"))
+        self.cmd(f"sudo install -m 775 -o frr -g frr -d  {log_dir}")
 
         self.write_cfg_file(f"{cfg_dir}/vtysh.conf", params["vtysh"])
         self.write_cfg_file(f"{cfg_dir}/daemons", params["daemons"])
         self.write_cfg_file(f"{cfg_dir}/frr.conf", params["ospf"])
 
+        # If our default IP is not an existing interface, create a 
+        # loopback.
+        match_found = False
+        ip = format(ipaddress.IPv4Interface(params.get('ip')).ip)
+        for intf in self.intfs.values():
+            if intf.ip == ip:
+                match_found = True
+        if not match_found:
+           # Make a default interface
+           mininet.util.quietRun('ip link add name loop type dummy')
+           self.loopIntf = mininet.link.Intf(name='loop', node=self)
+
         super().config(**params)
 
     def setIP(self, ip):
-        # Make the default interface have a /31 mask
-        mininet.node.Node.setIP(self, ip, prefixLen=31)
+        mininet.node.Node.setIP(self, ip)
 
     def write_cfg_file(self, file_path: str, contents: str) -> None:
         print(f"write {file_path}")
@@ -75,8 +84,7 @@ class FrrRouter(mininet.node.Node):
     def start(self):
         # Start frr daemons
         print(f"start router {self.name}")
-        output = self.cmd(f"/usr/lib/frr/frrinit.sh start '{self.name}'")
-        print(output)
+        self.cmd(f"/usr/lib/frr/frrinit.sh start '{self.name}'")
 
     def stop(self, deleteIntfs=False):
         # Do we need this? or just terminate?
@@ -100,11 +108,15 @@ class NetxTopo(mininet.topo.Topo):
         # Create routers
         for name, node in self.graph.nodes.items():
             ip = node.get("ip")
-            if ip is not None:
-                ip=format(ip)
+            if ip is  None:
+                # Find min intf
+                intf = min([ e['intf'][name] for e in self.graph.adj[name].values()])
+                for e in self.graph.adj[name].values():
+                    if e['intf'][name] == intf:
+                        ip = e['ip'][name]
 
             self.addHost(name, cls=FrrRouter, 
-                         ip=ip,
+                         ip=format(ip),
                          ospf=node["ospf"],
                          vtysh=node["vtysh"],
                          daemons=node["daemons"])

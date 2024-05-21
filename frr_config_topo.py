@@ -22,7 +22,7 @@ def annotate_graph(graph: networkx.Graph):
         node['number'] = count
         ip = 0x0a010000 + count
         count += 2
-        node['ip'] = ipaddress.IPv4Address(ip)
+        #node['ip'] = ipaddress.IPv4Interface((ip, 31))
 
     count = 1
     for edge in graph.edges.values():
@@ -83,7 +83,9 @@ def create_ospf_config(graph: networkx.Graph, name: str) -> str:
     networks_str = []
 
     if ip is not None:
-        network = ipaddress.IPv4Network((ip, 32))
+        # Make loopback a /32
+        # TODO: since this is a IPv4Interface, maybe don't change? Try that
+        network = ipaddress.IPv4Network((ip.ip, 32))
         networks_str.append(OSPF_NW_TEMPLATE.format(network=format(network)))
 
     for neighbor in graph.adj[name]:
@@ -96,8 +98,9 @@ def create_ospf_config(graph: networkx.Graph, name: str) -> str:
     for network in networks:
         networks_str.append(OSPF_NW_TEMPLATE.format(network=format(network)))
 
+    # Router ID must be a plain IP, no subnet.
     return OSPF_TEMPLATE.format(name=name,
-                                ip=format(ip),
+                                ip=format(ip.ip),
                                 networks='\n'.join(networks_str))
 
 def create_daemons_config() -> str:
