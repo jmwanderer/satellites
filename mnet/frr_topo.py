@@ -52,17 +52,18 @@ class FrrRouter(mininet.node.Node):
         self.write_cfg_file(f"{cfg_dir}/daemons", params["daemons"])
         self.write_cfg_file(f"{cfg_dir}/frr.conf", params["ospf"])
 
-        # If our default IP is not an existing interface, create a 
+        # If we have a default IP and it is not an existing interface, create a 
         # loopback.
-        match_found = False
-        ip = format(ipaddress.IPv4Interface(params.get('ip')).ip)
-        for intf in self.intfs.values():
-            if intf.ip == ip:
-                match_found = True
-        if not match_found:
-           # Make a default interface
-           mininet.util.quietRun('ip link add name loop type dummy')
-           self.loopIntf = mininet.link.Intf(name='loop', node=self)
+        if params.get('ip') is not None:
+            match_found = False
+            ip = format(ipaddress.IPv4Interface(params.get('ip')).ip)
+            for intf in self.intfs.values():
+                if intf.ip == ip:
+                    match_found = True
+            if not match_found:
+                # Make a default interface
+                mininet.util.quietRun('ip link add name loop type dummy')
+                self.loopIntf = mininet.link.Intf(name='loop', node=self)
 
         super().config(**params)
 
@@ -108,15 +109,11 @@ class NetxTopo(mininet.topo.Topo):
         # Create routers
         for name, node in self.graph.nodes.items():
             ip = node.get("ip")
-            if ip is  None:
-                # Find min intf
-                intf = min([ e['intf'][name] for e in self.graph.adj[name].values()])
-                for e in self.graph.adj[name].values():
-                    if e['intf'][name] == intf:
-                        ip = e['ip'][name]
+            if ip is not None:
+                ip = format(ip)
 
             self.addHost(name, cls=FrrRouter, 
-                         ip=format(ip),
+                         ip=ip,
                          ospf=node["ospf"],
                          vtysh=node["vtysh"],
                          daemons=node["daemons"])

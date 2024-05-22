@@ -22,7 +22,7 @@ def annotate_graph(graph: networkx.Graph):
         node['number'] = count
         ip = 0x0a010000 + count
         count += 2
-        #node['ip'] = ipaddress.IPv4Interface((ip, 31))
+        node['ip'] = ipaddress.IPv4Interface((ip, 31))
 
     count = 1
     for edge in graph.edges.values():
