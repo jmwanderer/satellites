@@ -74,6 +74,7 @@ class FrrRouter(mininet.node.Node):
         print(f"write {file_path}")
         with open(file_path, "w") as f:
             f.write(contents)
+            f.close()
         os.chmod(file_path, 0o640)
         shutil.chown(file_path, "frr", "frr")
 
