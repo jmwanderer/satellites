@@ -1,4 +1,6 @@
 import os
+import grp
+import pwd
 import ipaddress
 import shutil
 
@@ -41,18 +43,21 @@ class FrrRouter(mininet.node.Node):
     def config(self, **params):
         # Get frr config and save to frr config directory
         cfg_dir = FrrRouter.CFG_DIR.format(node=self.name)
-        print(f"create {cfg_dir}")
-        #self.cmd(f"sudo install -m 775 -o frr -g frrvty -d {cfg_dir}")
-        if not os.path.exists(cfg_dir):
-            os.makedirs(cfg_dir, mode = 0o775)
-            shutil.chown(cfg_dir, "frr", "frrvty")
-
         log_dir = FrrRouter.LOG_DIR.format(node=self.name)
-        print(f"create {log_dir}")
-        #self.cmd(f"sudo install -m 775 -o frr -g frr -d  {log_dir}")
+        uinfo = pwd.getpwnam('frr')
+
+        if not os.path.exists(cfg_dir):
+            # sudo install -m 775 -o frr -g frrvty -d {cfg_dir}
+            print(f"create {cfg_dir}")
+            os.makedirs(cfg_dir, mode = 0o775)
+            gid = grp.getgrnam('frrvty').gr_gid
+            os.chown(cfg_dir, uinfo.pw_uid, gid)
+
+        # sudo install -m 775 -o frr -g frr -d  {log_dir}
         if not os.path.exists(log_dir):
+            print(f"create {log_dir}")
             os.makedirs(log_dir, mode = 0o775)
-            shutil.chown(cfg_dir, "frr", "frr")
+            os.chown(log_dir, uinfo.pw_uid, uinfo.pw_gid)
 
         self.write_cfg_file(f"{cfg_dir}/vtysh.conf", params["vtysh"])
         self.write_cfg_file(f"{cfg_dir}/daemons", params["daemons"])
