@@ -42,11 +42,17 @@ class FrrRouter(mininet.node.Node):
         # Get frr config and save to frr config directory
         cfg_dir = FrrRouter.CFG_DIR.format(node=self.name)
         print(f"create {cfg_dir}")
-        self.cmd(f"sudo install -m 775 -o frr -g frrvty -d {cfg_dir}")
+        #self.cmd(f"sudo install -m 775 -o frr -g frrvty -d {cfg_dir}")
+        if not os.path.exists(cfg_dir):
+            os.makedirs(cfg_dir, mode = 0o775)
+            shutil.chown(cfg_dir, "frr", "frrvty")
 
         log_dir = FrrRouter.LOG_DIR.format(node=self.name)
         print(f"create {log_dir}")
-        self.cmd(f"sudo install -m 775 -o frr -g frr -d  {log_dir}")
+        #self.cmd(f"sudo install -m 775 -o frr -g frr -d  {log_dir}")
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir, mode = 0o775)
+            shutil.chown(cfg_dir, "frr", "frr")
 
         self.write_cfg_file(f"{cfg_dir}/vtysh.conf", params["vtysh"])
         self.write_cfg_file(f"{cfg_dir}/daemons", params["daemons"])
@@ -78,21 +84,15 @@ class FrrRouter(mininet.node.Node):
         os.chmod(file_path, 0o640)
         shutil.chown(file_path, "frr", "frr")
 
-    def terminate(self):
-        print(f"stop router {self.name}")
-        self.cmd(f"/usr/lib/frr/frrinit.sh stop '{self.name}'")
-        super().terminate()
-
-    def start(self):
+    def startRouter(self):
         # Start frr daemons
         print(f"start router {self.name}")
-        self.cmd(f"/usr/lib/frr/frrinit.sh start '{self.name}'")
+        self.sendCmd(f"/usr/lib/frr/frrinit.sh start '{self.name}'")
 
-    def stop(self, deleteIntfs=False):
-        # Do we need this? or just terminate?
+    def stopRouter(self):
         # Cleanup and stop frr daemons
         print(f"stop router {self.name}")
-        super().stop(deleteIntfs)
+        self.sendCmd(f"/usr/lib/frr/frrinit.sh stop '{self.name}'")
 
 
 class NetxTopo(mininet.topo.Topo):
@@ -104,7 +104,24 @@ class NetxTopo(mininet.topo.Topo):
     def start_routers(self, net: mininet.net.Mininet):
         for name in self.routers:
             router = net.getNodeByName(name)
-            router.start()
+            router.startRouter()
+        # Wait for start to complete.
+        for name in self.routers:
+            router = net.getNodeByName(name)
+            router.waitOutput()
+
+
+    def stop_routers(self, net: mininet.net.Mininet):
+        for name in self.routers:
+            router = net.getNodeByName(name)
+            router.stopRouter()
+
+        # Wait for start to complete - important!.
+        # Otherwise processes may not shut down.
+        for name in self.routers:
+            router = net.getNodeByName(name)
+            router.waitOutput()
+
 
     def build(self, **_opts):
         # Create routers

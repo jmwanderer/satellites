@@ -33,6 +33,7 @@ def run(num_rings, num_routers):
     net.start()
     topo.start_routers(net)
     CLI(net)
+    topo.stop_routers(net)
     net.stop()
 
 
@@ -58,7 +59,7 @@ if __name__ == '__main__':
             usage();
             sys.exit(-1)
 
-    if num_rings < 1 or num_rings > 20 or num_routers < 1 or num_routers > 20:
+    if num_rings < 1 or num_rings > 30 or num_routers < 1 or num_routers > 30:
         usage()
         sys.exit(-1)
 
