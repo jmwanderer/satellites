@@ -59,9 +59,12 @@ class FrrRouter(mininet.node.Node):
             os.makedirs(log_dir, mode = 0o775)
             os.chown(log_dir, uinfo.pw_uid, uinfo.pw_gid)
 
-        self.write_cfg_file(f"{cfg_dir}/vtysh.conf", params["vtysh"])
-        self.write_cfg_file(f"{cfg_dir}/daemons", params["daemons"])
-        self.write_cfg_file(f"{cfg_dir}/frr.conf", params["ospf"])
+        self.write_cfg_file(f"{cfg_dir}/vtysh.conf", params["vtysh"], 
+                            uinfo.pw_uid, uinfo.pw_gid)
+        self.write_cfg_file(f"{cfg_dir}/daemons", params["daemons"], 
+                            uinfo.pw_uid, uinfo.pw_gid)
+        self.write_cfg_file(f"{cfg_dir}/frr.conf", params["ospf"], 
+                            uinfo.pw_uid, uinfo.pw_gid)
 
         # If we have a default IP and it is not an existing interface, create a 
         # loopback.
@@ -81,13 +84,14 @@ class FrrRouter(mininet.node.Node):
     def setIP(self, ip):
         mininet.node.Node.setIP(self, ip)
 
-    def write_cfg_file(self, file_path: str, contents: str) -> None:
+    def write_cfg_file(self, file_path: str, 
+                       contents: str, uid: int, gid: int) -> None:
         print(f"write {file_path}")
         with open(file_path, "w") as f:
             f.write(contents)
             f.close()
         os.chmod(file_path, 0o640)
-        shutil.chown(file_path, "frr", "frr")
+        os.chown(file_path, uid, gid)
 
     def startRouter(self):
         # Start frr daemons
