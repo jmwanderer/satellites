@@ -3,6 +3,8 @@ import sys
 import sqlite3
 import shutil
 import time
+import subprocess
+import mininet.net
 
 
 def open_db(file_path: str):
@@ -50,11 +52,12 @@ def set_can_run(db, address: str, can_run):
 TEST=False
 
 def sample_target(db, name: str, address: str):
-    if TEST:
-        result = True
-    else:
-        result = False
-
+    process = subprocess.run(["ping", "-c1", "-W3", f"{address}"],
+                              capture_output=True, text=True)
+    print(process.stdout)
+    sent, received = mininet.net.Mininet._parsePing(process.stdout)
+    result = sent == received
+    
     c = db.cursor()
     q = c.execute("SELECT COUNT(*) FROM targets WHERE address = ?", (address,))
     if q.fetchone()[0] == 0:
@@ -85,6 +88,18 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
         q = c.execute("SELECT name, address from targets")
         for entry in q.fetchall():
             targets.append(entry)
+
+        index = -1
+        for i in range(len(targets)):
+            if targets[i][1] == address:
+                index = i
+                break
+            
+        if index != -1:
+            # Rotate list
+            tmp = targets[index+1:]
+            tmp.extend(targets[:index])
+            targets = tmp
 
         for target in targets:
             time.sleep(1)
