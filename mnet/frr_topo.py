@@ -14,7 +14,7 @@ import mininet.util
 
 import torus_topo
 import frr_config_topo
-import pmonitor
+import mnet.pmonitor
 
 
 class FrrRouter(mininet.node.Node):
@@ -34,7 +34,9 @@ class FrrRouter(mininet.node.Node):
 
         # Optional loopback interface
         self.loopIntf = None
-        self.working_db = tempfile.mkstemp(suffix="sqlite")
+        fd, self.working_db = tempfile.mkstemp(suffix="sqlite")
+        open(fd, "r").close()
+        print(f"{self.name} db file {self.working_db}")
 
     def defaultIntf(self):
         # If we have a loopback, that is the default interface.
@@ -104,15 +106,18 @@ class FrrRouter(mininet.node.Node):
     def stopRouter(self, db_master):
         # Cleanup and stop frr daemons
         print(f"stop router {self.name}")
-        pmonitor.set_can_run(db_master, False)
+        mnet.pmonitor.set_can_run(db_master, self.defaultIntf().ip, False)
         self.sendCmd(f"/usr/lib/frr/frrinit.sh stop '{self.name}'")
+        os.unlink(self.working_db)
 
 
 class NetxTopo(mininet.topo.Topo):
     def __init__(self, graph: networkx.Graph):
         self.graph = graph
         self.routers: list[str] = []
-        self.db_file = tempfile.mkstemp(suffix="sqlite")
+        fd, self.db_file = tempfile.mkstemp(suffix="sqlite")
+        open(fd, "r").close()
+        print(f"Master db file {self.db_file}")
         super(NetxTopo, self).__init__()
 
     def start_routers(self, net: mininet.net.Mininet):
@@ -121,7 +126,7 @@ class NetxTopo(mininet.topo.Topo):
         for name in self.routers:
             router = net.getNodeByName(name)
             data.append((router.name, router.defaultIntf().ip))
-        pmonitor.init_targets(self.db_file, data)
+        mnet.pmonitor.init_targets(self.db_file, data)
 
         for name in self.routers:
             router = net.getNodeByName(name)
@@ -132,7 +137,7 @@ class NetxTopo(mininet.topo.Topo):
             router.waitOutput()
 
     def stop_routers(self, net: mininet.net.Mininet):
-        db_master = pmonitor.open_db(self.db_file)
+        db_master = mnet.pmonitor.open_db(self.db_file)
         for name in self.routers:
             router = net.getNodeByName(name)
             router.stopRouter(db_master)
@@ -143,6 +148,7 @@ class NetxTopo(mininet.topo.Topo):
         for name in self.routers:
             router = net.getNodeByName(name)
             router.waitOutput()
+        os.unlink(self.db_file)
 
     def build(self, **_opts):
         # Create routers

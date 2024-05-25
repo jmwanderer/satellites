@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS targets;
 CREATE TABLE targets (
   address TEXT not NULL PRIMARY KEY,
   name TEXT not NULL,

@@ -6,36 +6,20 @@ import time
 
 
 def open_db(file_path: str):
+    db = sqlite3.connect(file_path)
+    return db
+
+def create_db(file_path: str):
     data_dir = os.path.dirname(file_path)
     if len(data_dir) > 0 and not os.path.exists(data_dir):
         os.makedirs(data_dir)
 
-    if not os.path.exists(file_path):
-        path = os.path.join(os.path.dirname(__file__), "schema.sql")
-        db = sqlite3.connect(file_path)
-        with open(path) as f:
-            db.executescript(f.read())
-        db.close()
+    path = os.path.join(os.path.dirname(__file__), "schema.sql")
     db = sqlite3.connect(file_path)
-    return db
-
-
-def init_targets(db_path: str, data: list[tuple[str]]):
-    db = open_db(db_path)
-    c = db.cursor()
-    q = c.execute("DELETE FROM targets")
-    db.commit()
-
-    for entry in data:
-        target = entry[0]
-        address = entry[1]
-        print(f"target = {target}, address = {address}")
-
-        c.execute("INSERT INTO targets (name, address) VALUES (?, ?)",
-                  (target, address));
-    db.commit()
+    with open(path) as f:
+        db.executescript(f.read())
     db.close()
-
+ 
 def is_running(db, address: str) -> bool:
     c = db.cursor()
     q = c.execute("SELECT running FROM targets WHERE address = ?", (address,))
@@ -91,13 +75,10 @@ def sample_target(db, name: str, address: str):
 
 def monitor_targets(db_path_master: str, db_path_local: str, address: str):
     print(f"monitor {address}")
+    create_db(db_file_local)
     db_master = open_db(db_path_master)
     db_local = open_db(db_path_local)
     set_running(db_master, address, True)
-
-    c = db_local.cursor()
-    q = c.execute("DELETE FROM targets")
-    db_local.commit()
 
     running = True
     while running:
@@ -117,6 +98,25 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
         if TEST:
             set_can_run(db_master, address, False)
         running = can_run(db_master, address)
+
+def init_targets(db_file_path: str, data: list[tuple[str]]):
+    create_db(db_file_path)
+ 
+    db = open_db(db_file_path)
+    c = db.cursor()
+    q = c.execute("DELETE FROM targets")
+    db.commit()
+
+    for entry in data:
+        target = entry[0]
+        address = entry[1]
+        print(f"target = {target}, address = {address}")
+
+        c.execute("INSERT INTO targets (name, address) VALUES (?, ?)",
+                  (target, address));
+    db.commit()
+    db.close()
+
 
 def test():
     data = [("host1", "192.168.33.1"),
