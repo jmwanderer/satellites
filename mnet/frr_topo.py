@@ -165,6 +165,18 @@ class NetxTopo(mininet.topo.Topo):
             router.waitOutput()
         os.unlink(self.db_file)
 
+    def get_monitor_stats(self):
+        good_count: int = 0
+        total_count: int = 0
+        for name in self.routers:
+            router = net.getNodeByName(name)
+            db_working = mnet.pmonitor.open_db(router.working_db)
+            good, total = mnet.pmonitor.get_status_count(db_working)
+            db_working.close()
+            good_count += good
+            total_count += total
+        return good_count, total_count
+
     def build(self, **_opts):
         # Create routers
         for name, node in self.graph.nodes.items():

@@ -47,6 +47,14 @@ def set_can_run(db, address: str, can_run):
                   (can_run, address,))
     db.commit()
 
+def get_status_count(db):
+    c = db.cursor()
+    q = c.execute("SELECT COUNT(*) FROM targets WHERE responded = TRUE " +
+                  "AND running = TRUE");
+    good_targets = c.fetchone()[0]
+    q = c.execute("SELECT COUNT(*) FROM targets WHERE running = TRUE");
+    total_targets = c.fetchone()[0]
+    return good_targets, total_targets
 
 
 TEST=False
@@ -138,7 +146,8 @@ def init_targets(db_file_path: str, data: list[tuple[str]]):
 
 def test():
     data = [("host1", "192.168.33.1"),
-            ("host2", "192.168.44.2")]
+            ("host2", "192.168.44.2"),
+            ("host3", "192.168.55.2")]
     db_master = "master.sqlite"
     db_working = "work.sqlite"
 
@@ -147,6 +156,8 @@ def test():
     TEST=True
     set_running(open_db(db_master), data[1][1], True)
     monitor_targets(db_master, db_working, data[0][1])
+    good, total = get_status_count(open_db(db_working))
+    print(f"status {good} / {total}")
 
 
 if __name__ == "__main__":
