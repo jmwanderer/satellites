@@ -6,3 +6,5 @@ env/
 venv/
 .mypy_cache/
 cache/
+*.sqlite
+*.swp

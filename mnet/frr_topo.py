@@ -2,6 +2,7 @@ import os
 import grp
 import pwd
 import ipaddress
+import tempfile
 import shutil
 
 import networkx
@@ -13,6 +14,7 @@ import mininet.util
 
 import torus_topo
 import frr_config_topo
+import pmonitor
 
 
 class FrrRouter(mininet.node.Node):
@@ -32,6 +34,7 @@ class FrrRouter(mininet.node.Node):
 
         # Optional loopback interface
         self.loopIntf = None
+        self.working_db = tempfile.mkstemp(suffix="sqlite")
 
     def defaultIntf(self):
         # If we have a loopback, that is the default interface.
@@ -93,14 +96,15 @@ class FrrRouter(mininet.node.Node):
         os.chmod(file_path, 0o640)
         os.chown(file_path, uid, gid)
 
-    def startRouter(self):
+    def startRouter(self, db_master_file):
         # Start frr daemons
         print(f"start router {self.name}")
         self.sendCmd(f"/usr/lib/frr/frrinit.sh start '{self.name}'")
 
-    def stopRouter(self):
+    def stopRouter(self, db_master):
         # Cleanup and stop frr daemons
         print(f"stop router {self.name}")
+        pmonitor.set_can_run(db_master, False)
         self.sendCmd(f"/usr/lib/frr/frrinit.sh stop '{self.name}'")
 
 
@@ -108,29 +112,37 @@ class NetxTopo(mininet.topo.Topo):
     def __init__(self, graph: networkx.Graph):
         self.graph = graph
         self.routers: list[str] = []
+        self.db_file = tempfile.mkstemp(suffix="sqlite")
         super(NetxTopo, self).__init__()
 
     def start_routers(self, net: mininet.net.Mininet):
+        # Populate master db file
+        data = []
         for name in self.routers:
             router = net.getNodeByName(name)
-            router.startRouter()
+            data.append((router.name, router.defaultIntf().ip))
+        pmonitor.init_targets(self.db_file, data)
+
+        for name in self.routers:
+            router = net.getNodeByName(name)
+            router.startRouter(self.db_file)
         # Wait for start to complete.
         for name in self.routers:
             router = net.getNodeByName(name)
             router.waitOutput()
 
-
     def stop_routers(self, net: mininet.net.Mininet):
+        db_master = pmonitor.open_db(self.db_file)
         for name in self.routers:
             router = net.getNodeByName(name)
-            router.stopRouter()
+            router.stopRouter(db_master)
+        db_master.close()
 
         # Wait for start to complete - important!.
         # Otherwise processes may not shut down.
         for name in self.routers:
             router = net.getNodeByName(name)
             router.waitOutput()
-
 
     def build(self, **_opts):
         # Create routers
