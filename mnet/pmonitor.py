@@ -51,7 +51,7 @@ def get_status_count(db):
     c = db.cursor()
     q = c.execute("SELECT COUNT(*) FROM targets WHERE responded = TRUE")
     good_targets = c.fetchone()[0]
-    q = c.execute("SELECT COUNT(*) FROM targets")
+    q = c.execute("SELECT COUNT(*) FROM targets WHERE total_count > 0")
     total_targets = c.fetchone()[0]
     return good_targets, total_targets
 
@@ -93,7 +93,6 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
     create_db(db_path_local)
     db_master = open_db(db_path_master)
     db_local = open_db(db_path_local)
-    set_running(db_master, address, True)
 
     running = True
     while running:
@@ -169,10 +168,16 @@ if __name__ == "__main__":
             sys.exit(0)
     elif len(sys.argv) == 5:
         if sys.argv[1] == 'monitor':
-            monitor_targets(sys.argv[2],
-                            sys.argv[3],
-                            sys.argv[4])
-            sys.exit(0)
+            try:
+                monitor_targets(sys.argv[2],
+                             sys.argv[3],
+                              sys.argv[4])
+                sys.exit(0)
+            except Exception as e:
+                f = open(f"/tmp/error_msg.{os.getpid()}", "w")
+                f.write(str(e))
+                f.close()
+                sys.exit(-1)
     print("usage:")
     print("\tmonitor <master_db> <working_db> <src_address>")
     print("\ttest")
