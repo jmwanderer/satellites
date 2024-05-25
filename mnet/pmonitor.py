@@ -49,10 +49,9 @@ def set_can_run(db, address: str, can_run):
 
 def get_status_count(db):
     c = db.cursor()
-    q = c.execute("SELECT COUNT(*) FROM targets WHERE responded = TRUE " +
-                  "AND running = TRUE");
+    q = c.execute("SELECT COUNT(*) FROM targets WHERE responded = TRUE")
     good_targets = c.fetchone()[0]
-    q = c.execute("SELECT COUNT(*) FROM targets WHERE running = TRUE");
+    q = c.execute("SELECT COUNT(*) FROM targets")
     total_targets = c.fetchone()[0]
     return good_targets, total_targets
 

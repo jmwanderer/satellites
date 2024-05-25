@@ -165,7 +165,7 @@ class NetxTopo(mininet.topo.Topo):
             router.waitOutput()
         os.unlink(self.db_file)
 
-    def get_monitor_stats(self):
+    def get_monitor_stats(self, net: mininet.net.Mininet):
         good_count: int = 0
         total_count: int = 0
         for name in self.routers:
