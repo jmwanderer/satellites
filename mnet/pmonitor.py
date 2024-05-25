@@ -58,20 +58,27 @@ def sample_target(db, name: str, address: str):
     sent, received = mininet.net.Mininet._parsePing(process.stdout)
     result = sent == received
     
+    prev_responded = False
     c = db.cursor()
-    q = c.execute("SELECT COUNT(*) FROM targets WHERE address = ?", (address,))
-    if q.fetchone()[0] == 0:
+    q = c.execute("SELECT responded FROM targets WHERE address = ?", (address,))
+    qr = q.fetchall()
+    if len(qr) == 0:
         c.execute("INSERT INTO targets (name, address) VALUES (?, ?)",
                   (name, address))
+    else:
+        prev_responded = qr[0][0]
 
+    now = time.time()
     if result:
         c.execute("UPDATE targets SET responded = TRUE, " +
+                  "updated = ?," +
                   "total_count = total_count + 1, " +
                   "total_success = total_success + 1 " +
-                  "WHERE address = ?", (address,))
-    else:
+                  "WHERE address = ?", (now, address,))
+    elif prev_responded:
         c.execute("UPDATE targets SET responded = FALSE, " +
-                  "total_count = total_count + 1 WHERE address = ?", (address,))
+                  "updated = ?," +
+                  "total_count = total_count + 1 WHERE address = ?", (now, address,))
     db.commit()
 
 
@@ -102,7 +109,7 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
             targets = tmp
 
         for target in targets:
-            time.sleep(1)
+            time.sleep(5)
             running = can_run(db_master, address)
             target_running = is_running(db_master, target[1])
             if running and target_running:

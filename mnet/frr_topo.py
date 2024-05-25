@@ -34,7 +34,7 @@ class FrrRouter(mininet.node.Node):
 
         # Optional loopback interface
         self.loopIntf = None
-        fd, self.working_db = tempfile.mkstemp(suffix="sqlite")
+        fd, self.working_db = tempfile.mkstemp(suffix=".sqlite")
         open(fd, "r").close()
         print(f"{self.name} db file {self.working_db}")
 
@@ -120,7 +120,7 @@ class NetxTopo(mininet.topo.Topo):
     def __init__(self, graph: networkx.Graph):
         self.graph = graph
         self.routers: list[str] = []
-        fd, self.db_file = tempfile.mkstemp(suffix="sqlite")
+        fd, self.db_file = tempfile.mkstemp(suffix=".sqlite")
         open(fd, "r").close()
         print(f"Master db file {self.db_file}")
         super(NetxTopo, self).__init__()
