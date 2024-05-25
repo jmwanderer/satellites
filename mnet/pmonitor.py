@@ -5,6 +5,7 @@ import shutil
 import time
 import subprocess
 import mininet.net
+import logging
 
 
 def open_db(file_path: str):
@@ -59,9 +60,10 @@ def get_status_count(db):
 TEST=False
 
 def sample_target(db, name: str, address: str):
+    logging.info("sample target: %s", address)
     process = subprocess.run(["ping", "-c1", "-W3", f"{address}"],
                               capture_output=True, text=True)
-    print(process.stdout)
+    logging.info("%s", process.stdout)
     sent, received = mininet.net.Mininet._parsePing(process.stdout)
     result = sent == received
     
@@ -90,6 +92,7 @@ def sample_target(db, name: str, address: str):
 
 
 def monitor_targets(db_path_master: str, db_path_local: str, address: str):
+    logging.info("Monitoring targets from %s to %s", address, db_path_local);
     create_db(db_path_local)
     db_master = open_db(db_path_master)
     db_local = open_db(db_path_local)
@@ -97,6 +100,7 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
     running = True
     while running:
         targets = []
+        logging.info("reload target list")
         c = db_master.cursor()
         q = c.execute("SELECT name, address from targets")
         for entry in q.fetchall():
@@ -115,7 +119,7 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
             targets = tmp
 
         for target in targets:
-            time.sleep(5)
+            time.sleep(3)
             running = can_run(db_master, address)
             target_running = is_running(db_master, target[1])
             if running and target_running:
@@ -162,8 +166,14 @@ if __name__ == "__main__":
     # Arguments:
     # test
     # monitor tmp_file_master tmp_file_working src_address
+    logging.basicConfig(
+        filename=f"/tmp/error_msg.{os.getpid()}",
+        level=logging.INFO
+    )
+
     if len(sys.argv) == 2:
         if sys.argv[1] == 'test':
+            logging.info("Starting test")
             test()
             sys.exit(0)
     elif len(sys.argv) == 5:
@@ -174,9 +184,7 @@ if __name__ == "__main__":
                               sys.argv[4])
                 sys.exit(0)
             except Exception as e:
-                f = open(f"/tmp/error_msg.{os.getpid()}", "w")
-                f.write(str(e))
-                f.close()
+                logging.error(str(e))
                 sys.exit(-1)
     print("usage:")
     print("\tmonitor <master_db> <working_db> <src_address>")
