@@ -50,7 +50,6 @@ def set_can_run(db, address: str, can_run):
 TEST=False
 
 def sample_target(db, name: str, address: str):
-    print(f"sample {address}")
     if TEST:
         result = True
     else:
@@ -74,8 +73,7 @@ def sample_target(db, name: str, address: str):
 
 
 def monitor_targets(db_path_master: str, db_path_local: str, address: str):
-    print(f"monitor {address}")
-    create_db(db_file_local)
+    create_db(db_path_local)
     db_master = open_db(db_path_master)
     db_local = open_db(db_path_local)
     set_running(db_master, address, True)
@@ -87,7 +85,6 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
         q = c.execute("SELECT name, address from targets")
         for entry in q.fetchall():
             targets.append(entry)
-        print(f"fetch  {len(targets)} entries")
 
         for target in targets:
             time.sleep(1)
@@ -110,7 +107,6 @@ def init_targets(db_file_path: str, data: list[tuple[str]]):
     for entry in data:
         target = entry[0]
         address = entry[1]
-        print(f"target = {target}, address = {address}")
 
         c.execute("INSERT INTO targets (name, address) VALUES (?, ?)",
                   (target, address));

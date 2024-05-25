@@ -98,10 +98,15 @@ class FrrRouter(mininet.node.Node):
         os.chmod(file_path, 0o640)
         os.chown(file_path, uid, gid)
 
-    def startRouter(self, db_master_file):
+    def startRouter(self):
         # Start frr daemons
         print(f"start router {self.name}")
         self.sendCmd(f"/usr/lib/frr/frrinit.sh start '{self.name}'")
+
+
+    def startMonitor(self, db_master_file):
+        self.sendCmd(f"python3 -m mnet.pmonitor monitor '{db_master_file}' '{self.working_db}' {self.defaultIntf().ip} &")
+
 
     def stopRouter(self, db_master):
         # Cleanup and stop frr daemons
@@ -128,9 +133,19 @@ class NetxTopo(mininet.topo.Topo):
             data.append((router.name, router.defaultIntf().ip))
         mnet.pmonitor.init_targets(self.db_file, data)
 
+        # Start routing
         for name in self.routers:
             router = net.getNodeByName(name)
-            router.startRouter(self.db_file)
+            router.startRouter()
+        # Wait for start to complete.
+        for name in self.routers:
+            router = net.getNodeByName(name)
+            router.waitOutput()
+
+        # Start monitoring
+        for name in self.routers:
+            router = net.getNodeByName(name)
+            router.startMonitor(self.db_file)
         # Wait for start to complete.
         for name in self.routers:
             router = net.getNodeByName(name)
