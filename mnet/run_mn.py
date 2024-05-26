@@ -8,6 +8,7 @@ import sys
 from mininet.net import Mininet
 from mininet.log import setLogLevel, info
 from mininet.cli import CLI
+import mnet.driver
 
 # TODO:
 # - Run frr deamons
@@ -32,7 +33,8 @@ def run(num_rings, num_routers):
     net = Mininet(topo=topo)
     net.start()
     topo.start_routers(net)
-    CLI(net)
+    #CLI(net)
+    driver = mnet.driver.run(topo, net)
     topo.stop_routers(net)
     net.stop()
 
