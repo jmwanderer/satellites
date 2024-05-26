@@ -19,7 +19,7 @@ import torus_topo
 import frr_config_topo
 import mnet.frr_topo
 
-def run(num_rings, num_routers):
+def run(num_rings, num_routers, use_cli):
     # Create a networkx graph annoted with FRR configs
     graph = networkx.Graph()
     torus_topo.create_network(graph, num_rings, num_routers)
@@ -33,8 +33,11 @@ def run(num_rings, num_routers):
     net = Mininet(topo=topo)
     net.start()
     topo.start_routers(net)
-    #CLI(net)
-    driver = mnet.driver.run(topo, net)
+    if use_cli:
+        CLI(net)
+    else:
+        print("Launching web API. Use /shutdown to halt")
+        driver = mnet.driver.run(topo, net)
     topo.stop_routers(net)
     net.stop()
 
@@ -46,9 +49,15 @@ def usage():
 
 
 if __name__ == '__main__':
+    use_cli = False
+    if "--cli" in sys.argv:
+        use_cli = True
+        sys.argv.remove("--cli")
+
     if len(sys.argv) != 1 and len(sys.argv) != 3:
         usage()
         sys.exit(-1)
+
 
     num_rings = 4
     num_routers = 4
@@ -67,6 +76,6 @@ if __name__ == '__main__':
 
     setLogLevel('info')
     print(f"Running {num_rings} rings with {num_routers} per ring")
-    run(num_rings, num_routers)
+    run(num_rings, num_routers, use_cli)
 
 
