@@ -1,0 +1,39 @@
+<html>
+  <head>
+	<meta http-equiv="refresh" content="10">
+  </head>
+  <body>
+	<H1>SatNetMiniSim</H1>
+	<p>
+	Network: {{ info["rings"] }} Rings x {{ info["ring_nodes"] }} Nodes
+	-
+	Time: {{ info["current_time"] }}
+	<p>
+	Connectivity: {{ info["stats_good"] }} / {{ info["stats_total"] }}
+	<p>
+	<input type="button" onclick="location.href='shutdown';" value="Shutdown"/>
+	<p>
+
+	<h2>Routers</h2>
+	<ul>
+	{% for entry in info["routers"] %}
+	<li> {{ entry[0] }} : {{ entry[1] }}
+	{% endfor %}
+	</ul>
+
+	<h2>Links</h2>
+	<ul>
+	{% for entry in info["links"] %}
+	<li> {{ entry[0] }} : {{ entry[1] }}
+	{% endfor %}
+	</ul>
+
+
+	<h2>Events</h2>
+	<ul>
+	{% for entry in info["events"] %}
+	<li> {{ entry }}
+	{% endfor %}
+	</ul>
+  </body>
+</html>

@@ -116,7 +116,6 @@ class FrrRouter(mininet.node.Node):
         self.sendCmd(f"/usr/lib/frr/frrinit.sh stop '{self.name}'")
         os.unlink(self.working_db)
 
-
 class NetxTopo(mininet.topo.Topo):
     def __init__(self, graph: networkx.Graph):
         self.graph = graph
@@ -168,18 +167,6 @@ class NetxTopo(mininet.topo.Topo):
             router.waitOutput()
         os.unlink(self.db_file)
 
-    def get_monitor_stats(self, net: mininet.net.Mininet):
-        good_count: int = 0
-        total_count: int = 0
-        for name in self.routers:
-            router = net.getNodeByName(name)
-            db_working = mnet.pmonitor.open_db(router.working_db)
-            good, total = mnet.pmonitor.get_status_count(db_working)
-            db_working.close()
-            good_count += good
-            total_count += total
-        return good_count, total_count
-
     def build(self, **_opts):
         # Create routers
         for name, node in self.graph.nodes.items():
@@ -211,6 +198,58 @@ class NetxTopo(mininet.topo.Topo):
                          params1={'ip': format(ip1) },
                          params2={'ip': format(ip2) })
 
+    def get_monitor_stats(self, net: mininet.net.Mininet):
+        good_count: int = 0
+        total_count: int = 0
+        for name in self.routers:
+            router = net.getNodeByName(name)
+            db_working = mnet.pmonitor.open_db(router.working_db)
+            good, total = mnet.pmonitor.get_status_count(db_working)
+            db_working.close()
+            good_count += good
+            total_count += total
+        return good_count, total_count
+
+    def get_topo_graph(self) -> networkx.Graph:
+        return self.graph
+
+    def get_router_list(self) -> list[tuple[str]]:
+        result = []
+        for name, node in self.graph.nodes.items():
+            ip = node.get("ip")
+            if ip is not None:
+                ip = format(ip)
+            else:
+                ip = ""
+            result.append((name, ip))
+        return result
+
+    def get_link_list(self) -> list[tuple[str]]:
+        result = []
+        for n, edge in self.graph.edges.items():
+            ip_str = []
+            for ip in edge["ip"].values():
+                ip_str.append(format(ip))
+            result.append((n, '-'.join(ip_str)))
+        return result
+
+
+    def set_link_state(self, name: str, state_up: bool): 
+        pass
+
+
+
+class NetxTopoStub(NetxTopo):
+    def __init__(self, graph: networkx.Graph):
+        super(NetxTopoStub, self).__init__(graph)
+
+    def get_monitor_stats(self, net: mininet.net.Mininet):
+        good_count: int = 0
+        total_count: int = 0
+        return good_count, total_count
+
+    def set_link_state(self, name: str, state_up: bool): 
+        pass
 
 
 if __name__ == "__main__":

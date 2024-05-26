@@ -38,6 +38,8 @@ def connect_rings(graph, ring1, ring2, num_ring_nodes):
         graph.edges[node1_name, node2_name]['inter_ring'] = True
 
 def create_network(graph, num_rings=NUM_RINGS, num_ring_nodes=NUM_RING_NODES):
+    graph.graph["rings"] = num_rings
+    graph.graph["ring_nodes"] = num_ring_nodes
     prev_ring_num = None
     for ring_num in range(num_rings):
         create_ring(graph, ring_num, num_ring_nodes)
