@@ -81,11 +81,19 @@ def root(request: Request):
             context={"info": info}
             )
 
+def intf_state(up: bool):
+    return "up" if up else "down"
+
 @app.get("/view/router/{node}", response_class=HTMLResponse)
 def view_router(request: Request, node: str):
     context = get_context()
     router = context.netxTopo.get_router(node, context.mn_net)
     print("loaded router")
+    for neighbor in router["neighbors"]:
+        intf1_state = intf_state(router["neighbors"][neighbor]["up"][0])
+        intf2_state = intf_state(router["neighbors"][neighbor]["up"][1])
+        router["neighbors"][neighbor]["up"]  = (intf1_state, intf2_state)
+
     return templates.TemplateResponse(
             request=request,
             name="router.html",
@@ -100,8 +108,8 @@ def view_link(request: Request, node1: str, node2: str):
     return templates.TemplateResponse(
             request=request, name="link.html",
             context={"link": link, 
-                "intf1_state": "up" if up1 else "down", 
-                "intf2_state": "up" if up2 else "down"}
+                "intf1_state": intf_state(up1),
+                "intf2_state": intf_state(up2) }
             )
 
 class Link(BaseModel):

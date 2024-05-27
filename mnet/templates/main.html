@@ -6,7 +6,7 @@
 	<H1>SatNetMiniSim</H1>
 	<p>
 	Network: {{ info["rings"] }} Rings x {{ info["ring_nodes"] }} Nodes
-	-
+	<p>	
 	Time: {{ info["current_time"] }},
 	Run Time: {{ info["run_time"] }}
 	<p>
@@ -15,14 +15,15 @@
 	<input type="button" onclick="location.href='shutdown';" value="Shutdown"/>
 	<p>
 
-	<h2>Routers</h2>
+	<h2>Routers ({{ info["routers"]|length }}) </h2>
 	<ul>
 	{% for entry in info["routers"] %}
-	<li> {{ entry[0] }} : {{ entry[1] }}
+	<li> <a href="{{ url_for('view_router', node=entry[0]) }}">
+			{{ entry[0] }} </a>: {{ entry[1] }}
 	{% endfor %}
 	</ul>
 
-	<h2>Links</h2>
+	<h2>Links ({{ info["links"]| length}})</h2>
 	<ul>
 	{% for entry in info["links"] %}
 	<li> <a href="{{ url_for('view_link', node1=entry[0], node2=entry[1]) }}">

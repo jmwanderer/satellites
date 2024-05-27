@@ -1,11 +1,19 @@
 <html>
   <head>
   </head>
-  <body>
+ <body>
+      <a href="{{ url_for('root') }}">Home</a>
       <H1>Link {{ link[0] }} - {{ link[1] }}</H1>
 	<ul>
-	    <li> {{ link[0] }} - {{ link[2] }} : {{ intf1_state }}
-	    <li> {{ link[1] }} - {{ link[3] }} : {{ intf2_state }}
+	    <li> 
+		    <a href="{{ url_for('view_router', node=link[0]) }}">
+			    {{ link[0] }} </a> 
+		    - {{ link[2] }} : {{ intf1_state }}
+
+	    <li> 
+		    <a href="{{ url_for('view_router', node=link[1]) }}">
+			    {{ link[1] }} </a>
+		    - {{ link[3] }} : {{ intf2_state }}
 	</ul>
   </body>
 </html> 

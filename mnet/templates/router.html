@@ -2,10 +2,23 @@
   <head>
   </head>
   <body>
-	  <H1>Router {{ router["name"] }}</H1>
-	  {{ router }}
-	<ul>
-	</ul>
+	  <a href="{{ url_for('root') }}">Home</a>
+	  <h1>Router {{ router["name"] }}</h1> 
+	  <h2>Interfaces</h2>
+	  <ul>
+          {% if router.get("ip") %}
+	  <li>loopback: {{ router["ip"] }}
+ 	  {% endif %}
+	  {% for neighbor in router["neighbors"] %}
+	  <li>
+		  {{ router["neighbors"][neighbor]["intf"] }}
+		  {{ router["neighbors"][neighbor]["ip"] }} -
+	  	  <a href="{{ url_for('view_router', node=neighbor) }}">
+			  {{ neighbor }} </a> : 
+		  {{ router["neighbors"][neighbor]["up"][0] }} :
+		  {{ router["neighbors"][neighbor]["up"][1] }}
+	  {% endfor %}
+	  </ul>
   </body>
 </html> 
 

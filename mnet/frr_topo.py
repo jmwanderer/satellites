@@ -249,6 +249,7 @@ class NetxTopo(mininet.topo.Topo):
         if self.graph.nodes.get(name) is None:
             return f"{name} does not exist"
         result = {"name": name,
+                  "ip": self.graph.nodes[name].get("ip"),
                   "neighbors": {}}
         for neighbor in self.graph.adj[name].keys():
             edge = self.graph.adj[name][neighbor]
