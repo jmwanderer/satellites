@@ -81,6 +81,16 @@ def root(request: Request):
             context={"info": info}
             )
 
+@app.get("/view/router/{node}", response_call=HTMLResponse)
+def view_router(request: Request, node: str):
+    context = get_context()
+    router = context.netxTopo.getRouter(node)
+    return tempaltes.TemplateResponse(
+            request=request,
+            name="router.html",
+            context={"router", router}
+            )
+
 @app.get("/view/link/{node1}/{node2}", response_class=HTMLResponse)
 def view_link(request: Request, node1: str, node2: str):
     context = get_context()

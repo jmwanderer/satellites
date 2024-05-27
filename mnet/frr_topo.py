@@ -245,6 +245,18 @@ class NetxTopo(mininet.topo.Topo):
             return f"link {node1}-{node2} does not exist"
         return (node1, node2, edge["ip"][node1], edge["ip"][node2])
 
+    def get_router(self, name: str, net: mininet.net.Mininet):
+        if self.graph.nodes.get(node1) is None:
+            return f"{name} does not exist"
+        result = { "neighbors": {}}
+        for neighbor in self.graph.adj[name].keys():
+            edge = self.graph.adj[name][neighbor]
+            result["neighbors"][neighbor] =  {
+               "ip": edge["ip"][nieghbor], 
+               "up": self.get_link_state(name, neighbor, net),
+               "intf": edge[nieghbor]["intf"] }
+        result["name"] = name
+        return result
 
     def set_link_state(self, node1: str, node2: str, state_up: bool,
                        net: mininet.net.Mininet):
