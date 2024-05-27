@@ -16,7 +16,6 @@ import mininet
 # - status
 # - shutdown links
 # - data
-# Catch ^c for a clean shutdown????
 # Surpress error on shutdown
 
 class NetxContext:
@@ -27,10 +26,14 @@ class NetxContext:
         self.mn_net: mininet.net.Mininet = mn
         self.server = uvicorn_server
         self.events = []
+        self.start_time = datetime.datetime.now()
 
     def add_event(self, event: str):
         self.events.append(event)
 
+    def run_time(self) -> datetime.timedelta:
+        now = datetime.datetime.now()
+        return now - self.start_time 
 
 
 context: NetxContext = None
@@ -57,6 +60,7 @@ def root(request: Request):
     context = get_context()
     rings = context.netxTopo.get_topo_graph().graph["rings"]
     current_time = datetime.datetime.now().isoformat(sep=" ", timespec="seconds")
+    run_time = str(context.run_time())
     ring_nodes = context.netxTopo.get_topo_graph().graph["ring_nodes"]
     good, total = context.netxTopo.get_monitor_stats(context.mn_net)
     routers = context.netxTopo.get_router_list()
@@ -67,6 +71,7 @@ def root(request: Request):
             "stats_good": good,
             "stats_total": total,
             "current_time": current_time,
+            "run_time": run_time,
             "routers": routers,
             "links": links,
             "events": events
@@ -76,9 +81,21 @@ def root(request: Request):
             context={"info": info}
             )
 
+@app.get("/view/link/{node1}/{node2}", response_class=HTMLResponse)
+def view_link(request: Request, node1: str, node2: str):
+    context = get_context()
+    link = context.netxTopo.get_link(node1, node2)
+    up1, up2 = context.netxTopo.get_link_state(node1, node2, context.mn_net)
+    return templates.TemplateResponse(
+            request=request, name="link.html",
+            context={"link": link, 
+                "intf1_state": "up" if up1 else "down", 
+                "intf2_state": "up" if up2 else "down"}
+            )
 
 class Link(BaseModel):
-    name: str
+    node1_name: str
+    node2_name: str
     up: bool
 
 
@@ -86,8 +103,11 @@ class Link(BaseModel):
 def set_link(link: Link):
     context = get_context()
     state = "up" if link.up else "down"
-    context.add_event(f"set link {link.name} {state}")
-    context.netxTopo.set_link_state(link.name, link.up)
+    context.add_event(f"set link {link.node1_name} - {link.node2_name} {state}")
+    err = context.netxTopo.set_link_state(link.node1_name, link.node2_name,
+                                          link.up, context.mn_net)
+    if err is not None:
+        return {"error": err}
     return {"status": "OK" }
 
 
@@ -106,4 +126,8 @@ async def shutdown():
     await context.server.shutdown()
     return "<html><body><h1>Shutting down...</h1></body></html>"
 
-
+def invoke_shutdown():
+    context = get_context()
+    context.server.should_exit = True
+    context.server.force_exit = True
+ 

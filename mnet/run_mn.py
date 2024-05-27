@@ -3,6 +3,7 @@
 """
 Run a mininet instance of FRR routers in a torus topology.
 """
+import signal
 import sys
 
 from mininet.net import Mininet
@@ -18,6 +19,10 @@ import networkx
 import torus_topo
 import frr_config_topo
 import mnet.frr_topo
+
+def signal_handler(sig, frame):
+    print("Ctrl-C recieved, shutting down....")
+    mnet.driver.invoke_shutdown()
 
 def run(num_rings, num_routers, use_cli):
     # Create a networkx graph annoted with FRR configs
@@ -37,6 +42,7 @@ def run(num_rings, num_routers, use_cli):
         CLI(net)
     else:
         print("Launching web API. Use /shutdown to halt")
+        signal.signal(signal.SIGINT, signal_handler)
         driver = mnet.driver.run(topo, net)
     topo.stop_routers(net)
     net.stop()

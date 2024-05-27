@@ -105,7 +105,7 @@ class FrrRouter(mininet.node.Node):
 
 
     def startMonitor(self, db_master_file, db_master):
-        self.sendCmd(f"python3 -m mnet.pmonitor monitor '{db_master_file}' '{self.working_db}' {self.defaultIntf().ip} &")
+        self.sendCmd(f"python3 -m mnet.pmonitor monitor '{db_master_file}' '{self.working_db}' {self.defaultIntf().ip} >> /dev/null 2>&1  &")
         mnet.pmonitor.set_running(db_master, self.defaultIntf().ip, True)
 
 
@@ -226,16 +226,53 @@ class NetxTopo(mininet.topo.Topo):
 
     def get_link_list(self) -> list[tuple[str]]:
         result = []
-        for n, edge in self.graph.edges.items():
+        for edge in self.graph.edges:
+            node1 = edge[0]
+            node2 = edge[1]
             ip_str = []
-            for ip in edge["ip"].values():
+            for ip in self.graph.edges[node1, node2]["ip"].values():
                 ip_str.append(format(ip))
-            result.append((n, '-'.join(ip_str)))
+            result.append((node1, node2, '-'.join(ip_str)))
         return result
 
+    def get_link(self, node1: str, node2: str):
+        if self.graph.nodes.get(node1) is None:
+            return f"{node1} does not exist"
+        if self.graph.nodes.get(node2) is None:
+            return f"{node2} does not exist"
+        edge = self.graph.adj[node1].get(node2)
+        if edge is None:
+            return f"link {node1}-{node2} does not exist"
+        return (node1, node2, edge["ip"][node1], edge["ip"][node2])
 
-    def set_link_state(self, name: str, state_up: bool): 
-        pass
+
+    def set_link_state(self, node1: str, node2: str, state_up: bool,
+                       net: mininet.net.Mininet):
+        if self.graph.nodes.get(node1) is None:
+            return f"{node1} does not exist"
+        if self.graph.nodes.get(node2) is None:
+            return f"{node2} does not exist"
+        adj = self.graph.adj[node1].get(node2)
+        if self.graph.adj[node1].get(node2) is None:
+            return f"{node1} to {node2} does not exist"
+        self._config_link_state(node1, node2, state_up, net)
+        return None
+
+    def _config_link_state(self, node1: str, node2: str, state_up: bool,
+                            net: mininet.net.Mininet):
+        state = "up" if state_up else "down"
+        net.configLinkStatus(node1, node2, state)
+
+    def get_link_state(self, node1: str, node2: str, 
+                       net: mininet.net.Mininet) -> bool:
+        n1 = net.nameToNode.get(node1)
+        n2 = net.nameToNode.get(node2)
+        links = net.linksBetween(n1, n2)
+        if len(links) > 0:
+            link = links[0]
+            return link.intf1.isUp(), link.intf2.isUp()
+
+        return False, False
 
 
 
@@ -248,8 +285,13 @@ class NetxTopoStub(NetxTopo):
         total_count: int = 0
         return good_count, total_count
 
-    def set_link_state(self, name: str, state_up: bool): 
+    def _config_link_state(self, node1:str, node2: str, state_up: bool,
+                           net: mininet.net.Mininet):
         pass
+
+    def get_link_state(self, node1: str, node2: str, 
+                       net: mininet.net.Mininet) -> bool:
+        return True, True
 
 
 if __name__ == "__main__":

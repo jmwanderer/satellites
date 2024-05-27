@@ -7,7 +7,8 @@
 	<p>
 	Network: {{ info["rings"] }} Rings x {{ info["ring_nodes"] }} Nodes
 	-
-	Time: {{ info["current_time"] }}
+	Time: {{ info["current_time"] }},
+	Run Time: {{ info["run_time"] }}
 	<p>
 	Connectivity: {{ info["stats_good"] }} / {{ info["stats_total"] }}
 	<p>
@@ -24,7 +25,8 @@
 	<h2>Links</h2>
 	<ul>
 	{% for entry in info["links"] %}
-	<li> {{ entry[0] }} : {{ entry[1] }}
+	<li> <a href="{{ url_for('view_link', node1=entry[0], node2=entry[1]) }}">
+			{{ entry[0] }}-{{ entry[1] }} </a> : {{ entry[2] }}
 	{% endfor %}
 	</ul>
 
