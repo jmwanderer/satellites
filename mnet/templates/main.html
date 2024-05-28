@@ -15,6 +15,82 @@
 	<input type="button" onclick="location.href='shutdown';" value="Shutdown"/>
 	<p>
 
+	<table>
+   	    <tr>
+	        <th>Failed Connections</th>
+	        <th>Good Connections</th>
+   	    </tr>
+   	    <tr>
+		<td>
+		    <div style="width: 500px;">
+		    <canvas id="fail_chart"/>
+	 	    </div>
+		</td>
+		<td>
+		    <div style="width: 500px;">
+		    <canvas id="ok_chart"/>
+	 	    </div>
+		</td>
+	    </tr>
+	</table>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.3.0/chart.umd.js" 
+		integrity="sha512-CMF3tQtjOoOJoOKlsS7/2loJlkyctwzSoDK/S40iAB+MqWSaf50uObGQSk5Ny/gfRhRCjNLvoxuCvdnERU4WGg==" 
+		crossorigin="anonymous" 
+		referrerpolicy="no-referrer"></script>
+
+    <script> 
+
+            const data_fail = [
+		{% for entry in info["stats"] %}
+		      {{ entry[2] - entry[1]}},
+		{% endfor %}
+		    ];
+
+    	    const data_ok = [
+		{% for entry in info["stats"] %}
+		      {{entry[1]}},
+		{% endfor %}
+	    ];
+	    const dates = [
+		{% for entry in info["stats"] %}
+		'{{ entry[0] }}',
+		{% endfor %}
+ 	    ];
+
+    new Chart(
+        document.getElementById('fail_chart'),
+        {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [
+                    {
+                        label: 'Pings',
+                        data: data_fail
+                    },
+               ]
+            }
+        }
+    );
+ 
+    new Chart(
+        document.getElementById('ok_chart'),
+        {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [
+                    {
+                        label: 'Pings',
+                        data: data_ok
+                    }
+                ]
+            }
+        }
+    );
+  </script>
+
 	<h2>Routers ({{ info["routers"]|length }}) </h2>
 	<ul>
 	{% for entry in info["routers"] %}

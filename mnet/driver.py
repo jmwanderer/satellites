@@ -1,6 +1,7 @@
 import datetime
 from contextlib import contextmanager
 import threading
+import time
 
 from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
@@ -57,6 +58,16 @@ def get_context():
     finally:
         global_context.release()
 
+def background_thread():
+    print("background thread")
+    while True:
+        print("background thread sleep")
+        time.sleep(20)
+        print("background thread wake")
+        with get_context() as context:
+            context.netxTopo.sample_stats(context.mn_net)
+
+
 app = FastAPI()
 
 def run(topo: NetxTopo, mn: mininet.net.Mininet):
@@ -66,6 +77,10 @@ def run(topo: NetxTopo, mn: mininet.net.Mininet):
                             loop="asyncio")
     server = uvicorn.Server(config=config)
     global_context = NetxContext(topo, mn, server)
+    # Consider using a uvicorn facility to do this instead
+    bg_thread = threading.Thread(target=background_thread)
+    bg_thread.daemon = True
+    bg_thread.start()
     server.run()
     
 
@@ -81,6 +96,11 @@ def root(request: Request):
         good, total = context.netxTopo.get_monitor_stats(context.mn_net)
         routers = context.netxTopo.get_router_list()
         links = context.netxTopo.get_link_list()
+        src_stats = context.netxTopo.get_stat_samples()
+        stats = []
+        for stat in src_stats:
+            stats.append((stat[0].time().isoformat(timespec="seconds"),
+                          stat[1], stat[1]))
         events = context.events[:min(len(context.events), 10)]
     info = {"rings": rings,
             "ring_nodes": ring_nodes,
@@ -90,7 +110,8 @@ def root(request: Request):
             "run_time": run_time,
             "routers": routers,
             "links": links,
-            "events": events
+            "events": events,
+            "stats": stats
             }
     return templates.TemplateResponse(
             request=request, name="main.html", 

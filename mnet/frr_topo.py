@@ -3,6 +3,7 @@ import grp
 import pwd
 import ipaddress
 import tempfile
+import datetime
 import shutil
 
 import networkx
@@ -120,6 +121,7 @@ class NetxTopo(mininet.topo.Topo):
     def __init__(self, graph: networkx.Graph):
         self.graph = graph
         self.routers: list[str] = []
+        self.stat_samples = []
         fd, self.db_file = tempfile.mkstemp(suffix=".sqlite")
         open(fd, "r").close()
         print(f"Master db file {self.db_file}")
@@ -209,6 +211,16 @@ class NetxTopo(mininet.topo.Topo):
             good_count += good
             total_count += total
         return good_count, total_count
+
+    def sample_stats(self, net: mininet.net.Mininet):
+        good, total = self.get_monitor_stats(net)
+        self.stat_samples.append((datetime.datetime.now(), good, total))
+        if len(self.stat_samples) > 200:
+            self.stat_samples.pop()
+        print(f"sample stats: {len(self.stat_samples)}")
+
+    def get_stat_samples(self):
+        return self.stat_samples
 
     def get_topo_graph(self) -> networkx.Graph:
         return self.graph
