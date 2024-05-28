@@ -100,7 +100,7 @@ def root(request: Request):
         stats = []
         for stat in src_stats:
             stats.append((stat[0].time().isoformat(timespec="seconds"),
-                          stat[1], stat[1]))
+                          stat[1], stat[2]))
         events = context.events[:min(len(context.events), 10)]
     info = {"rings": rings,
             "ring_nodes": ring_nodes,

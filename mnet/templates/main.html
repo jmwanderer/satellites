@@ -10,7 +10,8 @@
 	Time: {{ info["current_time"] }},
 	Run Time: {{ info["run_time"] }}
 	<p>
-	Connectivity: {{ info["stats_good"] }} / {{ info["stats_total"] }}
+	Connectivity: Fail - {{ info["stats_total"] - info["stats_good"] }},
+		      Good - {{ info["stats_good"] }}
 	<p>
 	<input type="button" onclick="location.href='shutdown';" value="Shutdown"/>
 	<p>
@@ -43,7 +44,7 @@
 
             const data_fail = [
 		{% for entry in info["stats"] %}
-		      {{ entry[2] - entry[1]}},
+				{{ entry[2]  - entry[1]}},
 		{% endfor %}
 		    ];
 
