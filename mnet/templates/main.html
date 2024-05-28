@@ -112,7 +112,7 @@
 	<h2>Events</h2>
 	<ul>
 	{% for entry in info["events"] %}
-	<li> {{ entry }}
+	<li> {{ entry[0] }}: {{ entry[1] }}
 	{% endfor %}
 	</ul>
   </body>

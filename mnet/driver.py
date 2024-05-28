@@ -35,7 +35,9 @@ class NetxContext:
         self.lock = threading.Lock()
 
     def add_event(self, event: str):
-        self.events.append(event)
+        self.events.append((datetime.datetime.now(), event))
+        if len(self.events) > 1000:
+            self.events.pop()
 
     def run_time(self) -> datetime.timedelta:
         now = datetime.datetime.now()
@@ -101,7 +103,11 @@ def root(request: Request):
         for stat in src_stats:
             stats.append((stat[0].time().isoformat(timespec="seconds"),
                           stat[1], stat[2]))
-        events = context.events[:min(len(context.events), 10)]
+        events = []
+        for entry in context.events[-min(len(context.events), 10):]:
+            events.append((entry[0].time().isoformat(timespec="seconds"),
+                           entry[1]))
+
     info = {"rings": rings,
             "ring_nodes": ring_nodes,
             "stats_good": good,
