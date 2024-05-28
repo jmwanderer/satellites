@@ -19,6 +19,20 @@
 		  {{ router["neighbors"][neighbor]["up"][1] }}
 	  {% endfor %}
 	  </ul>
+	  <h2> Connectivity </h2>
+	  <table>
+	      <body>
+	  {% for ring in ring_list %}
+	  	<tr>
+	      {% for node in ring %}
+	      	    <td>
+			{{ node }}
+		    </td>
+	      {% endfor %} 
+	  	</tr>
+	  {% endfor %}
+	      </body>
+	  <table>
   </body>
 </html> 
 

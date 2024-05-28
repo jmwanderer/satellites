@@ -213,6 +213,9 @@ class NetxTopo(mininet.topo.Topo):
     def get_topo_graph(self) -> networkx.Graph:
         return self.graph
 
+    def get_ring_list(self) -> list[list[str]]:
+        return self.graph.graph["ring_list"]
+
     def get_router_list(self) -> list[tuple[str]]:
         result = []
         for name, node in self.graph.nodes.items():

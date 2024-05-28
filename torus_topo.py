@@ -15,10 +15,13 @@ def get_node_name(ring_num, node_num):
 
 def create_ring(graph, ring_num, num_ring_nodes):
     prev_node_name = None
+    ring_nodes = []
+    graph.graph["ring_list"].append(ring_nodes)
     for node_num in range(num_ring_nodes):
         # Create a node in the ring
         node_name = get_node_name(ring_num, node_num)
         graph.add_node(node_name)
+        ring_nodes.append(node_name)
 
         # Create a link to the previously created node
         if prev_node_name is not None:
@@ -40,6 +43,7 @@ def connect_rings(graph, ring1, ring2, num_ring_nodes):
 def create_network(graph, num_rings=NUM_RINGS, num_ring_nodes=NUM_RING_NODES):
     graph.graph["rings"] = num_rings
     graph.graph["ring_nodes"] = num_ring_nodes
+    graph.graph["ring_list"] = []
     prev_ring_num = None
     for ring_num in range(num_rings):
         create_ring(graph, ring_num, num_ring_nodes)
