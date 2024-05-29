@@ -17,6 +17,9 @@ import queue
 import sys
 import time
 import threading
+import networkx
+
+import torus_topo
 
 from panda3d.core import PandaNode
 from panda3d.core import TextNode
@@ -32,7 +35,9 @@ from direct.showbase.ShowBase import ShowBase
 from direct.showbase.DirectObject import DirectObject
 from direct.task import Task
 from skyfield.api import load, wgs84
+from skyfield.api import EarthSatellite
 from skyfield.positionlib import Geocentric
+
 
 
 @dataclass
@@ -241,6 +246,20 @@ class World(DirectObject):
         for name in self.satellites:
             self.satellites[name].setScale(self.get_sat_size_scale())
 
+
+ 
+    def build_sat_entries(self) -> list[EarthSatellite]:
+        graph = networkx.Graph()
+        torus_topo.create_network(graph)
+        result = []
+        for node in graph.nodes:
+            orbit = graph.nodes[node]['orbit']
+            ts = load.timescale()
+            l1, l2 = orbit.tle_format()
+            satellite = EarthSatellite(l1, l2, node, ts)
+            result.append(satellite)
+        return result
+
     URLS = {
         "kuiper": "https://celestrak.org/NORAD/elements/gp.php?INTDES=2023-154",
         "GPS": "https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle",
@@ -249,24 +268,27 @@ class World(DirectObject):
     }
 
     def setup_elements(self, selection):
-        if selection not in World.URLS:
-            print(f"{selection} unknown")
-            print(list(World.URLS.keys()))
-            sys.exit(-1)
+        if selection == "artificial":
+            self.sat_entries = self.build_sat_entries()
+        else:
+            if selection not in World.URLS:
+                print(f"{selection} unknown")
+                print(list(World.URLS.keys()))
+                sys.exit(-1)
 
-        url = World.URLS[selection]
+            url = World.URLS[selection]
 
-        print(f"loading constellation: {selection}")
-        if not os.path.exists("cache"):
-            os.mkdir("cache")
+            print(f"loading constellation: {selection}")
+            if not os.path.exists("cache"):
+                os.mkdir("cache")
 
-        # Reload if more than a week old.
-        reload = False
-        filename = f"cache/{selection}.tle"
-        if os.path.exists(filename):
-            reload = os.stat(filename).st_mtime < time.time() - 60 * 60 * 24 * 7
-        self.sat_entries = load.tle_file(url, filename=filename, reload=reload)
-        print("Loaded %d satellites" % len(self.sat_entries))
+            # Reload if more than a week old.
+            reload = False
+            filename = f"cache/{selection}.tle"
+            if os.path.exists(filename):
+                reload = os.stat(filename).st_mtime < time.time() - 60 * 60 * 24 * 7
+            self.sat_entries = load.tle_file(url, filename=filename, reload=reload)
+            print("Loaded %d satellites" % len(self.sat_entries))
 
         self.loadElements()
         self.accept("q", sys.exit)

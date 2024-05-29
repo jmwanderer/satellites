@@ -5,10 +5,47 @@ This is a series of connected rings.
 Include test code to generate route maps and test connectivity.
 """
 
+from dataclasses import dataclass
+from typing import ClassVar
 import networkx
 
 NUM_RINGS = 40
 NUM_RING_NODES = 40
+
+
+LINE1 = '1 {:05d}U 24067A   {:2d}{:012.8f}  .00009878  00000-0  47637-3 0  999'
+LINE2 = '2 {:05d} {:8.4f} {:8.4f} 0003572 297.6243 {:8.4f} 15.33600000 6847'
+
+@dataclass 
+class OrbitData:
+    """Records key orbital information"""
+    right_ascension: float      # degrees
+    inclination: float          # degrees
+    mean_anomaly: float         # degrees
+    cat_num: int = 0           
+
+    cat_num_count: ClassVar[int] = 1
+
+    def assign_cat_num(self) -> None:
+        self.cat_num = OrbitData.cat_num_count
+        OrbitData.cat_num_count += 1
+
+    def tle_check_sum(line: str) -> str:
+        val = 0
+        for i in range(len(line)):
+            if line[i] == '-':
+                val += 1
+            elif line[i].isdigit():
+                val += int(line[i])
+        return str(val % 10)
+
+    def tle_format(self) -> tuple[str]:
+        l1 = LINE1.format(self.cat_num, 23, 21, 342)
+        l2 = LINE2.format(self.cat_num, self.inclination, self.right_ascension,
+                          self.mean_anomaly)
+        l1 = l1 + OrbitData.tle_check_sum(l1)
+        l2 = l2 + OrbitData.tle_check_sum(l2)
+        return l1, l2
 
 def get_node_name(ring_num, node_num):
     return f"R{ring_num}_{node_num}"
@@ -17,10 +54,20 @@ def create_ring(graph, ring_num, num_ring_nodes):
     prev_node_name = None
     ring_nodes = []
     graph.graph["ring_list"].append(ring_nodes)
+
+    # Set parameters for this orbit
+    num_rings: int = graph.graph["rings"]
+    right_ascension: float = 360 / num_rings * ring_num
+    inclination: float = 53.9
+
     for node_num in range(num_ring_nodes):
         # Create a node in the ring
         node_name = get_node_name(ring_num, node_num)
         graph.add_node(node_name)
+        mean_anomaly = 360 / num_ring_nodes * node_num
+        orbit = OrbitData(right_ascension, inclination, mean_anomaly)
+        orbit.assign_cat_num()
+        graph.nodes[node_name]['orbit'] = orbit
         ring_nodes.append(node_name)
 
         # Create a link to the previously created node
@@ -120,6 +167,15 @@ if __name__ == "__main__":
     print("Number edges: %d" % graph.number_of_edges())
     print(graph.nodes)
     print(graph.edges)
+
+    for node in graph.nodes:
+        print(node)
+        orbit = graph.nodes[node]['orbit']
+        print(orbit)
+        l1, l2 = orbit.tle_format()
+        print(l1)
+        print(l2)
+        print()
 
 
     routes = generate_route_table(graph, get_node_name(0, 0))
