@@ -249,8 +249,7 @@ class World(DirectObject):
 
  
     def build_sat_entries(self) -> list[EarthSatellite]:
-        graph = networkx.Graph()
-        torus_topo.create_network(graph)
+        graph = torus_topo.create_network()
         result = []
         for node in graph.nodes:
             orbit = graph.nodes[node]['orbit']

@@ -13,7 +13,10 @@ NUM_RINGS = 40
 NUM_RING_NODES = 40
 
 
+# Use canned IU, mean motion derivitivs, and drag term data
 LINE1 = '1 {:05d}U 24067A   {:2d}{:012.8f}  .00009878  00000-0  47637-3 0  999'
+# Use a perigee of 297 (could just be 0). Canned data for orbit count, prbits per day,
+# and exccentricity
 LINE2 = '2 {:05d} {:8.4f} {:8.4f} 0003572 297.6243 {:8.4f} 15.33600000 6847'
 
 @dataclass 
@@ -87,7 +90,8 @@ def connect_rings(graph, ring1, ring2, num_ring_nodes):
         graph.add_edge(node1_name, node2_name)
         graph.edges[node1_name, node2_name]['inter_ring'] = True
 
-def create_network(graph, num_rings=NUM_RINGS, num_ring_nodes=NUM_RING_NODES):
+def create_network(num_rings=NUM_RINGS, num_ring_nodes=NUM_RING_NODES):
+    graph = networkx.Graph()
     graph.graph["rings"] = num_rings
     graph.graph["ring_nodes"] = num_ring_nodes
     graph.graph["ring_list"] = []
@@ -103,6 +107,7 @@ def create_network(graph, num_rings=NUM_RINGS, num_ring_nodes=NUM_RING_NODES):
     # Set all edges to up
     for edge_name, edge in graph.edges.items():
         edge['up'] = True
+    return graph
 
 def down_inter_ring_links(graph, node_num_list, num_rings=NUM_RINGS):
     # Set the specified links to down
@@ -158,8 +163,7 @@ def trace_node(start_node_name, target_node_name):
 
 
 if __name__ == "__main__":
-    graph = networkx.Graph()
-    create_network(graph)
+    graph = create_network()
 
     down_inter_ring_links(graph, [0, 1, 2, 3, 4, 5, 20, 21, 22, 23, 24, 25])
     

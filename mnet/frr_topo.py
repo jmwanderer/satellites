@@ -332,8 +332,7 @@ class NetxTopoStub(NetxTopo):
         return []
 
 if __name__ == "__main__":
-    graph = networkx.Graph()
-    torus_topo.create_network(graph, 8, 8)
+    graph = torus_topo.create_network(8, 8)
     frr_config_topo.annotate_graph(graph)
     topo = NetxTopo(graph)
     topo.build()

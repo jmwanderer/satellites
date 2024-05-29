@@ -26,8 +26,7 @@ def signal_handler(sig, frame):
 
 def run(num_rings, num_routers, use_cli):
     # Create a networkx graph annoted with FRR configs
-    graph = networkx.Graph()
-    torus_topo.create_network(graph, num_rings, num_routers)
+    graph = torus_topo.create_network(num_rings, num_routers)
     frr_config_topo.annotate_graph(graph)
     frr_config_topo.dump_graph(graph)
 
