@@ -5,6 +5,7 @@ import ipaddress
 import tempfile
 import datetime
 import shutil
+import random
 
 import networkx
 import mininet.topo
@@ -315,8 +316,8 @@ class NetxTopoStub(NetxTopo):
         super(NetxTopoStub, self).__init__(graph)
 
     def get_monitor_stats(self, net: mininet.net.Mininet):
-        good_count: int = 0
-        total_count: int = 0
+        good_count: int = random.randrange(20)
+        total_count: int = random.randrange(20) + good_count
         return good_count, total_count
 
     def _config_link_state(self, node1:str, node2: str, state_up: bool,
@@ -327,6 +328,8 @@ class NetxTopoStub(NetxTopo):
                        net: mininet.net.Mininet) -> bool:
         return True, True
 
+    def get_node_status_list(self, name: str, net: mininet.net.Mininet):
+        return []
 
 if __name__ == "__main__":
     graph = networkx.Graph()
