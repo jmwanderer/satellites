@@ -37,7 +37,7 @@ class NetxContext:
     def add_event(self, event: str):
         self.events.append((datetime.datetime.now(), event))
         if len(self.events) > 1000:
-            self.events.pop()
+            self.events.pop(0)
 
     def run_time(self) -> datetime.timedelta:
         now = datetime.datetime.now()
@@ -61,11 +61,8 @@ def get_context():
         global_context.release()
 
 def background_thread():
-    print("background thread")
     while True:
-        print("background thread sleep")
         time.sleep(20)
-        print("background thread wake")
         with get_context() as context:
             context.netxTopo.sample_stats(context.mn_net)
 
@@ -131,6 +128,7 @@ def intf_state(up: bool):
 def view_router(request: Request, node: str):
     with get_context() as context:
         router = context.netxTopo.get_router(node, context.mn_net)
+        status_list = context.netxTopo.get_node_status_list(node, context.mn_net)
         ring_list = context.netxTopo.get_ring_list()
         for neighbor in router["neighbors"]:
             intf1_state = intf_state(router["neighbors"][neighbor]["up"][0])
@@ -140,7 +138,10 @@ def view_router(request: Request, node: str):
     return templates.TemplateResponse(
          request=request,
          name="router.html",
-         context={"router": router, "ring_list": ring_list}
+         context={
+            "router": router, 
+            "ring_list": ring_list,
+            "status_list": status_list}
          )
 
 @app.get("/view/link/{node1}/{node2}", response_class=HTMLResponse)

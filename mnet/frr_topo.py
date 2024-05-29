@@ -216,8 +216,14 @@ class NetxTopo(mininet.topo.Topo):
         good, total = self.get_monitor_stats(net)
         self.stat_samples.append((datetime.datetime.now(), good, total))
         if len(self.stat_samples) > 200:
-            self.stat_samples.pop()
-        print(f"sample stats: {len(self.stat_samples)}")
+            self.stat_samples.pop(0)
+
+    def get_node_status_list(self, name: str, net: mininet.net.Mininet):
+        router = net.getNodeByName(name)
+        db_working = mnet.pmonitor.open_db(router.working_db)
+        result = mnet.pmonitor.get_status_list(db_working)
+        return result
+
 
     def get_stat_samples(self):
         return self.stat_samples

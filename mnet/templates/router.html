@@ -25,7 +25,15 @@
 	  {% for ring in ring_list %}
 	  	<tr>
 	      {% for node in ring %}
-	      	    <td>
+	      	    {%- set bg="lightgrey" %}
+		    {% if node == router["name"] %}
+		    {%- set bg="white" %}
+		    {% elif status_list[node] == 1 %}
+	      	    {%- set bg="lightgreen" %}
+		    {% elif status_list[node] == 0 %}
+	      	    {%- set bg="pink" %}
+		    {% endif %}
+		    <td style="background-color:{{bg}};">
 			{{ node }}
 		    </td>
 	      {% endfor %} 

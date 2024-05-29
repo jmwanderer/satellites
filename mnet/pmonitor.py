@@ -51,10 +51,18 @@ def set_can_run(db, address: str, can_run):
 def get_status_count(db):
     c = db.cursor()
     q = c.execute("SELECT COUNT(*) FROM targets WHERE responded = TRUE")
-    good_targets = c.fetchone()[0]
+    good_targets = q.fetchone()[0]
     q = c.execute("SELECT COUNT(*) FROM targets WHERE total_count > 0")
-    total_targets = c.fetchone()[0]
+    total_targets = q.fetchone()[0]
     return good_targets, total_targets
+
+def get_status_list(db):
+    c = db.cursor()
+    q = c.execute("SELECT name, responded FROM targets WHERE total_count > 0")
+    result = {}
+    for e in q.fetchall():
+        result[e[0]] = e[1]
+    return result
 
 
 TEST=False
