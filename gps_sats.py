@@ -1,4 +1,3 @@
-from skyfield.api import EarthSatellite
 from skyfield.api import load, wgs84
 
 url = "https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle"

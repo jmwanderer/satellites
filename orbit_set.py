@@ -17,11 +17,10 @@ import queue
 import sys
 import time
 import threading
-import networkx
 
 import torus_topo
 
-from panda3d.core import PandaNode
+from direct.actor.Actor import Actor
 from panda3d.core import TextNode
 from panda3d.core import Point3
 from panda3d.core import LVecBase3
@@ -34,9 +33,10 @@ from direct.gui.DirectGui import OnscreenText
 from direct.showbase.ShowBase import ShowBase
 from direct.showbase.DirectObject import DirectObject
 from direct.task import Task
-from skyfield.api import load, wgs84
-from skyfield.api import EarthSatellite
-from skyfield.positionlib import Geocentric
+from direct.interval.Interval import Interval
+from skyfield.api import load, wgs84 # type: ignore
+from skyfield.api import EarthSatellite # type: ignore
+from skyfield.positionlib import Geocentric # type: ignore
 
 
 @dataclass
@@ -122,7 +122,7 @@ def generate_positions(update_q: queue.Queue, sat_entries):
 
             # Pause every 100 calculations
             if count % 100 == 0:
-                duration = 0
+                duration: float = 0
                 if len(sat_entries) > 100:
                     # Spread out update generation throughout the interval.
                     duration = (
@@ -181,7 +181,7 @@ base = ShowBase()
 
 class World(DirectObject):
 
-    def __init__(self):
+    def __init__(self) -> None:
         base.disableMouse()  # disable mouse control of the camera
         base.camera.setHpr(0, 0, 0)  # Set the camera orientation
 
@@ -208,11 +208,11 @@ class World(DirectObject):
         # Orbit height above earch 500km
         # Scale orbit above the earth
         self.pos_scale = self.earth_size_scale / 6373
-        self.satellites: dict[str, PandaNode] = {}
-        self.sat_intervals: dict[str, PositionUpdate] = {}
-        self.sat_entries = []
+        self.satellites: dict[str, Actor] = {}
+        self.sat_intervals: dict[str, Interval] = {}
+        self.sat_entries: list[EarthSatellite] = []
         self.selected_sat = None
-        self.update_q = queue.Queue()
+        self.update_q: queue.Queue = queue.Queue()
         self.setCameraPos()
         self.time = OnscreenText(
             text="time",
@@ -364,7 +364,7 @@ class World(DirectObject):
             for interval in self.sat_intervals.values():
                 interval.pause()
 
-    def get_sat_size_scale(self) -> int:
+    def get_sat_size_scale(self) -> float:
         # Increase scale with farther zoom settings.
         # zoom 8 : multiplier = 1
         return self.sat_size_scale * (self.zoom / 8)
@@ -412,8 +412,9 @@ class World(DirectObject):
                 interval = self.earth.hprInterval(
                     delta.seconds / TIME_RATE, LVecBase3(update.rotation, 0, 0)
                 )
-                interval.start()
-                self.sat_intervals[update.name] = interval
+                if interval is not None:
+                    interval.start()
+                    self.sat_intervals[update.name] = interval
 
             return
 
@@ -430,8 +431,9 @@ class World(DirectObject):
             time_now = vtime_now()
             delta = update.time - time_now
             interval = satellite.posInterval(delta.seconds / TIME_RATE, Point3(x, y, z))
-            interval.start()
-            self.sat_intervals[update.name] = interval
+            if interval is not None:
+                interval.start()
+                self.sat_intervals[update.name] = interval
 
     def gLoop(self, task):
         while not self.update_q.empty() and not vtime_paused:

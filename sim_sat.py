@@ -10,19 +10,17 @@ Generate events for:
 """
 
 from dataclasses import dataclass
-from typing import ClassVar
 import sys
-import logging
 import datetime
 import time
 
 import torus_topo
 
 import networkx
-from skyfield.api import load, wgs84
-from skyfield.api import EarthSatellite
-from skyfield.positionlib import Geocentric
-from skyfield.units import Angle
+from skyfield.api import load, wgs84 # type: ignore
+from skyfield.api import EarthSatellite # type: ignore
+from skyfield.positionlib import Geocentric # type: ignore
+from skyfield.units import Angle # type: ignore
 
 
 @dataclass
@@ -46,7 +44,7 @@ class SatSimulation:
     # Time slice for simulation
     TIME_SLICE = 10
 
-    def __init__(self, graph: networkx.graph):
+    def __init__(self, graph: networkx.Graph):
         self.graph = graph
         self.ts = load.timescale()
         self.satellites: list[Satellite] = []

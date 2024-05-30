@@ -35,6 +35,7 @@ class OrbitData:
         self.cat_num = OrbitData.cat_num_count
         OrbitData.cat_num_count += 1
 
+    @staticmethod
     def tle_check_sum(line: str) -> str:
         val = 0
         for i in range(len(line)):
@@ -44,7 +45,7 @@ class OrbitData:
                 val += int(line[i])
         return str(val % 10)
 
-    def tle_format(self) -> tuple[str]:
+    def tle_format(self) -> tuple[str,str]:
         l1 = LINE1.format(self.cat_num, 23, 21, 342)
         l2 = LINE2.format(
             self.cat_num, self.inclination, self.right_ascension, self.mean_anomaly
@@ -54,13 +55,13 @@ class OrbitData:
         return l1, l2
 
 
-def get_node_name(ring_num, node_num):
+def get_node_name(ring_num: int, node_num: int) -> str:
     return f"R{ring_num}_{node_num}"
 
 
-def create_ring(graph, ring_num, num_ring_nodes):
-    prev_node_name = None
-    ring_nodes = []
+def create_ring(graph: networkx.Graph, ring_num: int , num_ring_nodes: int) -> None:
+    prev_node_name: str|None = None
+    ring_nodes: list[str] = []
     graph.graph["ring_list"].append(ring_nodes)
 
     # Set parameters for this orbit
@@ -92,7 +93,7 @@ def create_ring(graph, ring_num, num_ring_nodes):
         graph.edges[prev_node_name, get_node_name(ring_num, 0)]["inter_ring"] = False
 
 
-def connect_rings(graph, ring1, ring2, num_ring_nodes):
+def connect_rings(graph: networkx.Graph, ring1: int, ring2: int, num_ring_nodes: int) -> None:
     for node_num in range(num_ring_nodes):
         node1_name = get_node_name(ring1, node_num)
         node2_name = get_node_name(ring2, node_num)
@@ -100,8 +101,8 @@ def connect_rings(graph, ring1, ring2, num_ring_nodes):
         graph.edges[node1_name, node2_name]["inter_ring"] = True
 
 
-def create_network(num_rings=NUM_RINGS, num_ring_nodes=NUM_RING_NODES):
-    graph = networkx.Graph()
+def create_network(num_rings: int =NUM_RINGS, num_ring_nodes: int =NUM_RING_NODES) -> networkx.Graph:
+    graph: networkx.Graph = networkx.Graph()
     graph.graph["rings"] = num_rings
     graph.graph["ring_nodes"] = num_ring_nodes
     graph.graph["ring_list"] = []
@@ -120,8 +121,7 @@ def create_network(num_rings=NUM_RINGS, num_ring_nodes=NUM_RING_NODES):
         edge["up"] = True
     return graph
 
-
-def down_inter_ring_links(graph, node_num_list, num_rings=NUM_RINGS):
+def down_inter_ring_links(graph: networkx.Graph, node_num_list, num_rings=NUM_RINGS):
     # Set the specified links to down
     for node_num in node_num_list:
         for ring_num in range(num_rings):
