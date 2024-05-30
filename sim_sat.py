@@ -15,6 +15,7 @@ import datetime
 import time
 
 import torus_topo
+import mnet.client
 
 import networkx
 from skyfield.api import load, wgs84 # type: ignore
@@ -48,6 +49,7 @@ class SatSimulation:
         self.graph = graph
         self.ts = load.timescale()
         self.satellites: list[Satellite] = []
+        self.client: mnet.client.Client = mnet.client.Client("http://127.0.0.0:8000")
         for node in graph.nodes:
             orbit = graph.nodes[node]["orbit"]
             ts = load.timescale()
@@ -75,9 +77,15 @@ class SatSimulation:
             ):
                 # Above the threashold for inter plane links to connect
                 satellite.inter_plane_status = False
-                print(f"{satellite.name} ISL down")
             else:
                 satellite.inter_plane_status = True
+
+    def send_updates(self):
+        for satellite in self.satellites:
+            if satellite.prev_inter_plane_status != satellite.inter_plane_status:
+                for neighbor in self.graph.adj[satellite.name]: 
+                    if self.graph.edges[satellite.name, neighbor]["inter_ring"]:
+                        self.client.set_link_state(satellite.name, neighbor, satellite.inter_plane_status)
 
     def run(self):
         current_time = datetime.datetime.now(tz=datetime.UTC)
@@ -90,6 +98,7 @@ class SatSimulation:
             sleep_delta = future_time - datetime.datetime.now(tz=datetime.UTC)
             print("sleep")
             time.sleep(sleep_delta.seconds)
+            self.send_updates()
             current_time = future_time
 
 
