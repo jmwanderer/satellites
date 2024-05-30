@@ -2,6 +2,7 @@ import unittest
 import torus_topo
 import frr_config_topo
 import sat_pos_samples
+import gps_sats
 
 class TestCase(unittest.TestCase):
     def testTorusRouting(self):
@@ -20,3 +21,6 @@ class TestCase(unittest.TestCase):
 
     def testSatPositionSamples(self):
         sat_pos_samples.test_sat_functions()
+
+    def testGpsSats(self):
+        gps_sats.load_gps_sats()
