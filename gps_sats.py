@@ -1,4 +1,3 @@
-
 from skyfield.api import EarthSatellite
 from skyfield.api import load, wgs84
 
@@ -11,12 +10,9 @@ for sat in satellites:
     print("Epoch %s" % sat.epoch.utc_jpl())
     print("Geocentric Position")
     ts = load.timescale()
-    geo = sat.at(ts.now()) 
+    geo = sat.at(ts.now())
     lat, lon = wgs84.latlon_of(geo)
     print(geo.position.km)
     print(f"Latitude: {lat}")
     print(f"Longitude: {lon}")
     print()
-
-
-

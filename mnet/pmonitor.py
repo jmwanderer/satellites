@@ -12,6 +12,7 @@ def open_db(file_path: str):
     db = sqlite3.connect(file_path)
     return db
 
+
 def create_db(file_path: str):
     data_dir = os.path.dirname(file_path)
     if len(data_dir) > 0 and not os.path.exists(data_dir):
@@ -22,31 +23,45 @@ def create_db(file_path: str):
     with open(path) as f:
         db.executescript(f.read())
     db.close()
- 
+
+
 def is_running(db, address: str) -> bool:
     c = db.cursor()
     q = c.execute("SELECT running FROM targets WHERE address = ?", (address,))
-    entry = q.fetchone();
+    entry = q.fetchone()
     return entry[0]
 
 
 def set_running(db, address: str, running: bool):
     c = db.cursor()
-    q = c.execute("UPDATE targets SET running = ? WHERE address = ?", 
-                  (running, address,))
+    q = c.execute(
+        "UPDATE targets SET running = ? WHERE address = ?",
+        (
+            running,
+            address,
+        ),
+    )
     db.commit()
+
 
 def can_run(db, address: str) -> bool:
     c = db.cursor()
     q = c.execute("SELECT run FROM targets WHERE address = ?", (address,))
-    entry = q.fetchone();
+    entry = q.fetchone()
     return entry[0]
+
 
 def set_can_run(db, address: str, can_run):
     c = db.cursor()
-    q = c.execute("UPDATE targets SET run = ? WHERE address = ?", 
-                  (can_run, address,))
+    q = c.execute(
+        "UPDATE targets SET run = ? WHERE address = ?",
+        (
+            can_run,
+            address,
+        ),
+    )
     db.commit()
+
 
 def get_status_count(db):
     c = db.cursor()
@@ -55,6 +70,7 @@ def get_status_count(db):
     q = c.execute("SELECT COUNT(*) FROM targets WHERE total_count > 0")
     total_targets = q.fetchone()[0]
     return good_targets, total_targets
+
 
 def get_status_list(db):
     c = db.cursor()
@@ -65,42 +81,55 @@ def get_status_list(db):
     return result
 
 
-TEST=False
+TEST = False
+
 
 def sample_target(db, name: str, address: str):
     logging.info("sample target: %s", address)
-    process = subprocess.run(["ping", "-c1", "-W3", f"{address}"],
-                              capture_output=True, text=True)
+    process = subprocess.run(
+        ["ping", "-c1", "-W3", f"{address}"], capture_output=True, text=True
+    )
     logging.info("%s", process.stdout)
     sent, received = mininet.net.Mininet._parsePing(process.stdout)
     result = sent == received
-    
+
     prev_responded = False
     c = db.cursor()
     q = c.execute("SELECT responded FROM targets WHERE address = ?", (address,))
     qr = q.fetchall()
     if len(qr) == 0:
-        c.execute("INSERT INTO targets (name, address) VALUES (?, ?)",
-                  (name, address))
+        c.execute("INSERT INTO targets (name, address) VALUES (?, ?)", (name, address))
     else:
         prev_responded = qr[0][0]
 
     now = time.time()
     if result:
-        c.execute("UPDATE targets SET responded = TRUE, " +
-                  "updated = ?," +
-                  "total_count = total_count + 1, " +
-                  "total_success = total_success + 1 " +
-                  "WHERE address = ?", (now, address,))
+        c.execute(
+            "UPDATE targets SET responded = TRUE, "
+            + "updated = ?,"
+            + "total_count = total_count + 1, "
+            + "total_success = total_success + 1 "
+            + "WHERE address = ?",
+            (
+                now,
+                address,
+            ),
+        )
     elif prev_responded:
-        c.execute("UPDATE targets SET responded = FALSE, " +
-                  "updated = ?," +
-                  "total_count = total_count + 1 WHERE address = ?", (now, address,))
+        c.execute(
+            "UPDATE targets SET responded = FALSE, "
+            + "updated = ?,"
+            + "total_count = total_count + 1 WHERE address = ?",
+            (
+                now,
+                address,
+            ),
+        )
     db.commit()
 
 
 def monitor_targets(db_path_master: str, db_path_local: str, address: str):
-    logging.info("Monitoring targets from %s to %s", address, db_path_local);
+    logging.info("Monitoring targets from %s to %s", address, db_path_local)
     create_db(db_path_local)
     db_master = open_db(db_path_master)
     db_local = open_db(db_path_local)
@@ -119,10 +148,10 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
             if targets[i][1] == address:
                 index = i
                 break
-            
+
         if index != -1:
             # Rotate list
-            tmp = targets[index+1:]
+            tmp = targets[index + 1 :]
             tmp.extend(targets[:index])
             targets = tmp
 
@@ -131,14 +160,15 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
             running = can_run(db_master, address)
             target_running = is_running(db_master, target[1])
             if running and target_running:
-                sample_target(db_local, target[0], target[1]);
+                sample_target(db_local, target[0], target[1])
         if TEST:
             set_can_run(db_master, address, False)
         running = can_run(db_master, address)
 
+
 def init_targets(db_file_path: str, data: list[tuple[str]]):
     create_db(db_file_path)
- 
+
     db = open_db(db_file_path)
     c = db.cursor()
     q = c.execute("DELETE FROM targets")
@@ -148,22 +178,25 @@ def init_targets(db_file_path: str, data: list[tuple[str]]):
         target = entry[0]
         address = entry[1]
 
-        c.execute("INSERT INTO targets (name, address) VALUES (?, ?)",
-                  (target, address));
+        c.execute(
+            "INSERT INTO targets (name, address) VALUES (?, ?)", (target, address)
+        )
     db.commit()
     db.close()
 
 
 def test():
-    data = [("host1", "192.168.33.1"),
-            ("host2", "192.168.44.2"),
-            ("host3", "192.168.55.2")]
+    data = [
+        ("host1", "192.168.33.1"),
+        ("host2", "192.168.44.2"),
+        ("host3", "192.168.55.2"),
+    ]
     db_master = "master.sqlite"
     db_working = "work.sqlite"
 
     init_targets(db_master, data)
     global TEST
-    TEST=True
+    TEST = True
     set_running(open_db(db_master), data[1][1], True)
     monitor_targets(db_master, db_working, data[0][1])
     good, total = get_status_count(open_db(db_working))
@@ -174,22 +207,17 @@ if __name__ == "__main__":
     # Arguments:
     # test
     # monitor tmp_file_master tmp_file_working src_address
-    logging.basicConfig(
-        filename=f"/tmp/error_msg.{os.getpid()}",
-        level=logging.INFO
-    )
+    logging.basicConfig(filename=f"/tmp/error_msg.{os.getpid()}", level=logging.INFO)
 
     if len(sys.argv) == 2:
-        if sys.argv[1] == 'test':
+        if sys.argv[1] == "test":
             logging.info("Starting test")
             test()
             sys.exit(0)
     elif len(sys.argv) == 5:
-        if sys.argv[1] == 'monitor':
+        if sys.argv[1] == "monitor":
             try:
-                monitor_targets(sys.argv[2],
-                             sys.argv[3],
-                              sys.argv[4])
+                monitor_targets(sys.argv[2], sys.argv[3], sys.argv[4])
                 sys.exit(0)
             except Exception as e:
                 logging.error(str(e))
@@ -198,6 +226,3 @@ if __name__ == "__main__":
     print("\tmonitor <master_db> <working_db> <src_address>")
     print("\ttest")
     sys.exit(-1)
-
-
-

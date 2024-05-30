@@ -39,7 +39,6 @@ from skyfield.api import EarthSatellite
 from skyfield.positionlib import Geocentric
 
 
-
 @dataclass
 class PositionUpdate:
     """Reports new positions for objects."""
@@ -246,13 +245,11 @@ class World(DirectObject):
         for name in self.satellites:
             self.satellites[name].setScale(self.get_sat_size_scale())
 
-
- 
     def build_sat_entries(self) -> list[EarthSatellite]:
         graph = torus_topo.create_network()
         result = []
         for node in graph.nodes:
-            orbit = graph.nodes[node]['orbit']
+            orbit = graph.nodes[node]["orbit"]
             ts = load.timescale()
             l1, l2 = orbit.tle_format()
             satellite = EarthSatellite(l1, l2, node, ts)

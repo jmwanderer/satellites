@@ -20,9 +20,11 @@ import torus_topo
 import frr_config_topo
 import mnet.frr_topo
 
+
 def signal_handler(sig, frame):
     print("Ctrl-C recieved, shutting down....")
     mnet.driver.invoke_shutdown()
+
 
 def run(num_rings, num_routers, use_cli):
     # Create a networkx graph annoted with FRR configs
@@ -53,7 +55,7 @@ def usage():
     print("<routers-per-ring> - number of routers in each ring, 1 - 20")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     use_cli = False
     if "--cli" in sys.argv:
         use_cli = True
@@ -63,24 +65,21 @@ if __name__ == '__main__':
         usage()
         sys.exit(-1)
 
-
     num_rings = 4
     num_routers = 4
 
     if len(sys.argv) > 1:
         try:
-            num_rings = int(sys.argv[1])   
-            num_routers = int(sys.argv[2])   
+            num_rings = int(sys.argv[1])
+            num_routers = int(sys.argv[2])
         except:
-            usage();
+            usage()
             sys.exit(-1)
 
     if num_rings < 1 or num_rings > 30 or num_routers < 1 or num_routers > 30:
         usage()
         sys.exit(-1)
 
-    setLogLevel('info')
+    setLogLevel("info")
     print(f"Running {num_rings} rings with {num_routers} per ring")
     run(num_rings, num_routers, use_cli)
-
-

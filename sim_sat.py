@@ -24,16 +24,18 @@ from skyfield.api import EarthSatellite
 from skyfield.positionlib import Geocentric
 from skyfield.units import Angle
 
+
 @dataclass
 class Satellite:
     """Represents an instance of a satellite"""
+
     name: str
     earth_sat: EarthSatellite
     geo: Geocentric = None
     lat: Angle = 0
     lon: Angle = 0
     inter_plane_status: bool = True
-    prev_inter_plane_status: bool = True 
+    prev_inter_plane_status: bool = True
 
 
 class SatSimulation:
@@ -42,14 +44,14 @@ class SatSimulation:
     """
 
     # Time slice for simulation
-    TIME_SLICE=10
+    TIME_SLICE = 10
 
     def __init__(self, graph: networkx.graph):
         self.graph = graph
         self.ts = load.timescale()
         self.satellites: list[Satellite] = []
         for node in graph.nodes:
-            orbit = graph.nodes[node]['orbit']
+            orbit = graph.nodes[node]["orbit"]
             ts = load.timescale()
             l1, l2 = orbit.tle_format()
             earth_satellite = EarthSatellite(l1, l2, node, ts)
@@ -70,8 +72,9 @@ class SatSimulation:
         for satellite in self.satellites:
             # Track if state changed
             satellite.prev_inter_plane_status = satellite.inter_plane_status
-            if (satellite.lat.degrees > (inclination - 2) or
-                satellite.lat.degrees < (-inclination + 2)):
+            if satellite.lat.degrees > (inclination - 2) or satellite.lat.degrees < (
+                -inclination + 2
+            ):
                 # Above the threashold for inter plane links to connect
                 satellite.inter_plane_status = False
                 print(f"{satellite.name} ISL down")
@@ -91,11 +94,12 @@ class SatSimulation:
             time.sleep(sleep_delta.seconds)
             current_time = future_time
 
+
 def run(num_rings: int, num_routers: int) -> None:
     graph = torus_topo.create_network(num_rings, num_routers)
     sim: SatSimulation = SatSimulation(graph)
     sim.run()
- 
+
 
 def usage():
     print("Usage: sim_sat <num rings> <routers-per-ring>")
@@ -103,7 +107,7 @@ def usage():
     print("<routers-per-ring> - number of routers in each ring, 1 - 20")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     if len(sys.argv) != 1 and len(sys.argv) != 3:
         usage()
         sys.exit(-1)
@@ -113,10 +117,10 @@ if __name__ == '__main__':
 
     if len(sys.argv) > 1:
         try:
-            num_rings = int(sys.argv[1])   
-            num_routers = int(sys.argv[2])   
+            num_rings = int(sys.argv[1])
+            num_routers = int(sys.argv[2])
         except:
-            usage();
+            usage()
             sys.exit(-1)
 
     if num_rings < 1 or num_rings > 30 or num_routers < 1 or num_routers > 30:
@@ -125,5 +129,3 @@ if __name__ == '__main__':
 
     print(f"Running {num_rings} rings with {num_routers} per ring")
     run(num_rings, num_routers)
-
-

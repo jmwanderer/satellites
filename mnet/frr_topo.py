@@ -28,8 +28,8 @@ class FrrRouter(mininet.node.Node):
     Does not cleanup config files.
     """
 
-    CFG_DIR="/etc/frr/{node}"
-    LOG_DIR="/var/log/frr/{node}"
+    CFG_DIR = "/etc/frr/{node}"
+    LOG_DIR = "/var/log/frr/{node}"
 
     def __init__(self, name, **params):
         mininet.node.Node.__init__(self, name, **params)
@@ -51,48 +51,50 @@ class FrrRouter(mininet.node.Node):
         # Get frr config and save to frr config directory
         cfg_dir = FrrRouter.CFG_DIR.format(node=self.name)
         log_dir = FrrRouter.LOG_DIR.format(node=self.name)
-        uinfo = pwd.getpwnam('frr')
+        uinfo = pwd.getpwnam("frr")
 
         if not os.path.exists(cfg_dir):
             # sudo install -m 775 -o frr -g frrvty -d {cfg_dir}
             print(f"create {cfg_dir}")
-            os.makedirs(cfg_dir, mode = 0o775)
-            gid = grp.getgrnam('frrvty').gr_gid
+            os.makedirs(cfg_dir, mode=0o775)
+            gid = grp.getgrnam("frrvty").gr_gid
             os.chown(cfg_dir, uinfo.pw_uid, gid)
 
         # sudo install -m 775 -o frr -g frr -d  {log_dir}
         if not os.path.exists(log_dir):
             print(f"create {log_dir}")
-            os.makedirs(log_dir, mode = 0o775)
+            os.makedirs(log_dir, mode=0o775)
             os.chown(log_dir, uinfo.pw_uid, uinfo.pw_gid)
 
-        self.write_cfg_file(f"{cfg_dir}/vtysh.conf", params["vtysh"], 
-                            uinfo.pw_uid, uinfo.pw_gid)
-        self.write_cfg_file(f"{cfg_dir}/daemons", params["daemons"], 
-                            uinfo.pw_uid, uinfo.pw_gid)
-        self.write_cfg_file(f"{cfg_dir}/frr.conf", params["ospf"], 
-                            uinfo.pw_uid, uinfo.pw_gid)
+        self.write_cfg_file(
+            f"{cfg_dir}/vtysh.conf", params["vtysh"], uinfo.pw_uid, uinfo.pw_gid
+        )
+        self.write_cfg_file(
+            f"{cfg_dir}/daemons", params["daemons"], uinfo.pw_uid, uinfo.pw_gid
+        )
+        self.write_cfg_file(
+            f"{cfg_dir}/frr.conf", params["ospf"], uinfo.pw_uid, uinfo.pw_gid
+        )
 
-        # If we have a default IP and it is not an existing interface, create a 
+        # If we have a default IP and it is not an existing interface, create a
         # loopback.
-        if params.get('ip') is not None:
+        if params.get("ip") is not None:
             match_found = False
-            ip = format(ipaddress.IPv4Interface(params.get('ip')).ip)
+            ip = format(ipaddress.IPv4Interface(params.get("ip")).ip)
             for intf in self.intfs.values():
                 if intf.ip == ip:
                     match_found = True
             if not match_found:
                 # Make a default interface
-                mininet.util.quietRun('ip link add name loop type dummy')
-                self.loopIntf = mininet.link.Intf(name='loop', node=self)
+                mininet.util.quietRun("ip link add name loop type dummy")
+                self.loopIntf = mininet.link.Intf(name="loop", node=self)
 
         super().config(**params)
 
     def setIP(self, ip):
         mininet.node.Node.setIP(self, ip)
 
-    def write_cfg_file(self, file_path: str, 
-                       contents: str, uid: int, gid: int) -> None:
+    def write_cfg_file(self, file_path: str, contents: str, uid: int, gid: int) -> None:
         print(f"write {file_path}")
         with open(file_path, "w") as f:
             f.write(contents)
@@ -105,11 +107,11 @@ class FrrRouter(mininet.node.Node):
         print(f"start router {self.name}")
         self.sendCmd(f"/usr/lib/frr/frrinit.sh start '{self.name}'")
 
-
     def startMonitor(self, db_master_file, db_master):
-        self.sendCmd(f"python3 -m mnet.pmonitor monitor '{db_master_file}' '{self.working_db}' {self.defaultIntf().ip} >> /dev/null 2>&1  &")
+        self.sendCmd(
+            f"python3 -m mnet.pmonitor monitor '{db_master_file}' '{self.working_db}' {self.defaultIntf().ip} >> /dev/null 2>&1  &"
+        )
         mnet.pmonitor.set_running(db_master, self.defaultIntf().ip, True)
-
 
     def stopRouter(self, db_master):
         # Cleanup and stop frr daemons
@@ -117,6 +119,7 @@ class FrrRouter(mininet.node.Node):
         mnet.pmonitor.set_can_run(db_master, self.defaultIntf().ip, False)
         self.sendCmd(f"/usr/lib/frr/frrinit.sh stop '{self.name}'")
         os.unlink(self.working_db)
+
 
 class NetxTopo(mininet.topo.Topo):
     def __init__(self, graph: networkx.Graph):
@@ -177,11 +180,14 @@ class NetxTopo(mininet.topo.Topo):
             if ip is not None:
                 ip = format(ip)
 
-            self.addHost(name, cls=FrrRouter, 
-                         ip=ip,
-                         ospf=node["ospf"],
-                         vtysh=node["vtysh"],
-                         daemons=node["daemons"])
+            self.addHost(
+                name,
+                cls=FrrRouter,
+                ip=ip,
+                ospf=node["ospf"],
+                vtysh=node["vtysh"],
+                daemons=node["daemons"],
+            )
             self.routers.append(name)
 
         # Create links between routers
@@ -194,12 +200,14 @@ class NetxTopo(mininet.topo.Topo):
             ip2 = edge["ip"][router2]
             intf2 = edge["intf"][router2]
 
-            self.addLink(router1,
-                         router2,
-                         intfName1=intf1,
-                         intfName2=intf2,
-                         params1={'ip': format(ip1) },
-                         params2={'ip': format(ip2) })
+            self.addLink(
+                router1,
+                router2,
+                intfName1=intf1,
+                intfName2=intf2,
+                params1={"ip": format(ip1)},
+                params2={"ip": format(ip2)},
+            )
 
     def get_monitor_stats(self, net: mininet.net.Mininet):
         good_count: int = 0
@@ -224,7 +232,6 @@ class NetxTopo(mininet.topo.Topo):
         db_working = mnet.pmonitor.open_db(router.working_db)
         result = mnet.pmonitor.get_status_list(db_working)
         return result
-
 
     def get_stat_samples(self):
         return self.stat_samples
@@ -254,7 +261,7 @@ class NetxTopo(mininet.topo.Topo):
             ip_str = []
             for ip in self.graph.edges[node1, node2]["ip"].values():
                 ip_str.append(format(ip))
-            result.append((node1, node2, '-'.join(ip_str)))
+            result.append((node1, node2, "-".join(ip_str)))
         return result
 
     def get_link(self, node1: str, node2: str):
@@ -270,19 +277,19 @@ class NetxTopo(mininet.topo.Topo):
     def get_router(self, name: str, net: mininet.net.Mininet):
         if self.graph.nodes.get(name) is None:
             return f"{name} does not exist"
-        result = {"name": name,
-                  "ip": self.graph.nodes[name].get("ip"),
-                  "neighbors": {}}
+        result = {"name": name, "ip": self.graph.nodes[name].get("ip"), "neighbors": {}}
         for neighbor in self.graph.adj[name].keys():
             edge = self.graph.adj[name][neighbor]
-            result["neighbors"][neighbor] =  {
-               "ip": edge["ip"][neighbor], 
-               "up": self.get_link_state(name, neighbor, net),
-               "intf": edge["intf"][neighbor] }
+            result["neighbors"][neighbor] = {
+                "ip": edge["ip"][neighbor],
+                "up": self.get_link_state(name, neighbor, net),
+                "intf": edge["intf"][neighbor],
+            }
         return result
 
-    def set_link_state(self, node1: str, node2: str, state_up: bool,
-                       net: mininet.net.Mininet):
+    def set_link_state(
+        self, node1: str, node2: str, state_up: bool, net: mininet.net.Mininet
+    ):
         if self.graph.nodes.get(node1) is None:
             return f"{node1} does not exist"
         if self.graph.nodes.get(node2) is None:
@@ -293,13 +300,13 @@ class NetxTopo(mininet.topo.Topo):
         self._config_link_state(node1, node2, state_up, net)
         return None
 
-    def _config_link_state(self, node1: str, node2: str, state_up: bool,
-                            net: mininet.net.Mininet):
+    def _config_link_state(
+        self, node1: str, node2: str, state_up: bool, net: mininet.net.Mininet
+    ):
         state = "up" if state_up else "down"
         net.configLinkStatus(node1, node2, state)
 
-    def get_link_state(self, node1: str, node2: str, 
-                       net: mininet.net.Mininet) -> bool:
+    def get_link_state(self, node1: str, node2: str, net: mininet.net.Mininet) -> bool:
         n1 = net.nameToNode.get(node1)
         n2 = net.nameToNode.get(node2)
         links = net.linksBetween(n1, n2)
@@ -308,7 +315,6 @@ class NetxTopo(mininet.topo.Topo):
             return link.intf1.isUp(), link.intf2.isUp()
 
         return False, False
-
 
 
 class NetxTopoStub(NetxTopo):
@@ -320,16 +326,17 @@ class NetxTopoStub(NetxTopo):
         total_count: int = random.randrange(20) + good_count
         return good_count, total_count
 
-    def _config_link_state(self, node1:str, node2: str, state_up: bool,
-                           net: mininet.net.Mininet):
+    def _config_link_state(
+        self, node1: str, node2: str, state_up: bool, net: mininet.net.Mininet
+    ):
         pass
 
-    def get_link_state(self, node1: str, node2: str, 
-                       net: mininet.net.Mininet) -> bool:
+    def get_link_state(self, node1: str, node2: str, net: mininet.net.Mininet) -> bool:
         return True, True
 
     def get_node_status_list(self, name: str, net: mininet.net.Mininet):
         return []
+
 
 if __name__ == "__main__":
     graph = torus_topo.create_network(8, 8)
@@ -337,9 +344,6 @@ if __name__ == "__main__":
     topo = NetxTopo(graph)
     topo.build()
 
-    for name, node in  graph.nodes.items():
-        print(node['ospf'])
+    for name, node in graph.nodes.items():
+        print(node["ospf"])
         print()
-
-
-
