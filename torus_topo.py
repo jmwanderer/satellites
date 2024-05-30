@@ -8,6 +8,7 @@ Include test code to generate route maps and test connectivity.
 from dataclasses import dataclass
 from typing import ClassVar
 import networkx
+import datetime
 
 # Default network size
 NUM_RINGS = 40
@@ -71,7 +72,11 @@ class OrbitData:
         return str(val % 10)
 
     def tle_format(self) -> tuple[str,str]:
-        l1 = LINE1.format(self.cat_num, 23, 21, 342)
+        time_tuple = datetime.datetime.now().timetuple()
+        year = time_tuple.tm_year % 1000 % 100
+        day = time_tuple.tm_yday
+        
+        l1 = LINE1.format(self.cat_num, year, day, 342)
         l2 = LINE2.format(
             self.cat_num, self.inclination, self.right_ascension, self.mean_anomaly
         )
