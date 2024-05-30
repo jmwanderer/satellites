@@ -9,10 +9,35 @@ from dataclasses import dataclass
 from typing import ClassVar
 import networkx
 
+# Default network size
 NUM_RINGS = 40
 NUM_RING_NODES = 40
 
+def create_network(num_rings: int =NUM_RINGS, num_ring_nodes: int =NUM_RING_NODES) -> networkx.Graph:
+    """
+    Create a torus network of the given size annotated with orbital information.
+    """
+    graph: networkx.Graph = networkx.Graph()
+    graph.graph["rings"] = num_rings
+    graph.graph["ring_nodes"] = num_ring_nodes
+    graph.graph["ring_list"] = []
+    graph.graph["inclination"] = 53.9
+    prev_ring_num = None
+    for ring_num in range(num_rings):
+        create_ring(graph, ring_num, num_ring_nodes)
+        if prev_ring_num is not None:
+            connect_rings(graph, prev_ring_num, ring_num, num_ring_nodes)
+        prev_ring_num = ring_num
+    if prev_ring_num is not None:
+        connect_rings(graph, prev_ring_num, 0, num_ring_nodes)
 
+    # Set all edges to up
+    for edge_name, edge in graph.edges.items():
+        edge["up"] = True
+    return graph
+
+
+# Format for generating TLE oribit information
 # Use canned IU, mean motion derivitivs, and drag term data
 LINE1 = "1 {:05d}U 24067A   {:2d}{:012.8f}  .00009878  00000-0  47637-3 0  999"
 # Use a perigee of 297 (could just be 0). Canned data for orbit count, prbits per day,
@@ -100,28 +125,16 @@ def connect_rings(graph: networkx.Graph, ring1: int, ring2: int, num_ring_nodes:
         graph.add_edge(node1_name, node2_name)
         graph.edges[node1_name, node2_name]["inter_ring"] = True
 
+#
+# Functions to exercise basic routing over the torus topology graph 
+#
 
-def create_network(num_rings: int =NUM_RINGS, num_ring_nodes: int =NUM_RING_NODES) -> networkx.Graph:
-    graph: networkx.Graph = networkx.Graph()
-    graph.graph["rings"] = num_rings
-    graph.graph["ring_nodes"] = num_ring_nodes
-    graph.graph["ring_list"] = []
-    graph.graph["inclination"] = 53.9
-    prev_ring_num = None
-    for ring_num in range(num_rings):
-        create_ring(graph, ring_num, num_ring_nodes)
-        if prev_ring_num is not None:
-            connect_rings(graph, prev_ring_num, ring_num, num_ring_nodes)
-        prev_ring_num = ring_num
-    if prev_ring_num is not None:
-        connect_rings(graph, prev_ring_num, 0, num_ring_nodes)
-
-    # Set all edges to up
-    for edge_name, edge in graph.edges.items():
-        edge["up"] = True
-    return graph
-
-def down_inter_ring_links(graph: networkx.Graph, node_num_list, num_rings=NUM_RINGS):
+def down_inter_ring_links(graph: networkx.Graph, node_num_list: list[int], num_rings=NUM_RINGS):
+    """
+    Mark the inter-ring links down for the specified node numbers on all rings 
+    to prevent use during a path trace. This causes many inter-ring links to be down to 
+    test the routing functions.
+    """
     # Set the specified links to down
     for node_num in node_num_list:
         for ring_num in range(num_rings):
@@ -131,29 +144,47 @@ def down_inter_ring_links(graph: networkx.Graph, node_num_list, num_rings=NUM_RI
                     graph[node_name][neighbor_name]["up"] = False
 
 
-def generate_route_table(graph, node_name):
-    routes = {}  # Dest: (hops, [NH, ...])
+def generate_route_table(graph: networkx.Graph, node_name: str) -> dict[str,tuple[int,str]]:
+    """
+    Breadth first search to generate routes fromthe  start node to all other nodes.
+    Routing table provides a next hop and a path length for all possible destinations.
+
+    { "dest node" : ( path_len, "next hop" )}
+    """
+
+    routes = {}  # Dest: (hops, next hop node)
     for name, node in graph.nodes.items():
         node["visited"] = False
 
+    # Queue to nodes to visit
     node_list = []
+    # Mark the start node as visited
     graph.nodes[node_name]["visited"] = True
 
-    def visit_node(graph, next_hop, path_len, visit_node_name):
+    def visit_node(graph: networkx.Graph, next_hop: str, path_len: int, visit_node_name: str) -> None:
+        """
+        Visit a node by adding all neighbors to the visit queue
+        """
+        # Neighbors already visted are added to the queue, we skip them here
         if graph.nodes[visit_node_name]["visited"]:
             return
         graph.nodes[visit_node_name]["visited"] = True
 
-        routes[visit_node_name] = (path_len, [next_hop])
+        # This node is reachable from the start node via the given 
+        # next hop from the start node
+        routes[visit_node_name] = (path_len, next_hop)
 
+        # Enqueue is reachable neighbor for a future visit
         for neighbor_node_name in graph.adj[visit_node_name]:
             if graph.edges[visit_node_name, neighbor_node_name]["up"]:
                 node_list.append((path_len + 1, next_hop, neighbor_node_name))
 
+    # Enqueue the neighbors of the start node for visiting
     for neighbor_node_name in graph.adj[node_name]:
         if graph.edges[node_name, neighbor_node_name]["up"]:
             node_list.append((1, neighbor_node_name, neighbor_node_name))
 
+    # Visit all nodes until the queue is empty
     while len(node_list) > 0:
         path_len, next_hop, visit_node_name = node_list.pop(0)
         visit_node(graph, next_hop, path_len, visit_node_name)
@@ -161,22 +192,33 @@ def generate_route_table(graph, node_name):
     return routes
 
 
-def trace_node(start_node_name, target_node_name):
+def trace_path(start_node_name: str, target_node_name: str, route_tables: dict[str,dict[str,tuple[int,str]]]) -> bool:
+    """
+    Follow the routing tables to trace a path between the start and target node
+    route_tables is a dictionary of routes for each source node
+    """
+    unreachable_count: int = 0
     print("trace node %s to %s" % (start_node_name, target_node_name))
-    current_node_name = start_node_name
+    current_node_name: str | None = start_node_name
+
+    # Follow path until we reach the target or it is unreachable
     while current_node_name is not None and current_node_name != target_node_name:
         if route_tables[current_node_name].get(target_node_name) is None:
             current_node_name = None
             print("unreachable")
         else:
             entry = route_tables[current_node_name][target_node_name]
-            next_hop_name = entry[1][0]
+            next_hop_name = entry[1]
             print(next_hop_name)
             current_node_name = next_hop_name
+    return current_node_name is not None
 
 
-if __name__ == "__main__":
-    graph = create_network()
+def run_routing_test() -> bool:
+    """
+    Make a graph and exercise path tracing
+    """
+    graph: networkx.Graph = create_network()
 
     down_inter_ring_links(graph, [0, 1, 2, 3, 4, 5, 20, 21, 22, 23, 24, 25])
 
@@ -203,10 +245,15 @@ if __name__ == "__main__":
         print("generate routes %s" % node_name)
         route_tables[node_name] = generate_route_table(graph, node_name)
 
-    trace_node(get_node_name(0, 0), get_node_name(0, 1))
+    result: bool = trace_path(get_node_name(0, 0), get_node_name(0, 1), route_tables)
     print()
-    trace_node(get_node_name(0, 0), get_node_name(0, 2))
+    result = result and trace_path(get_node_name(0, 0), get_node_name(0, 2), route_tables)
     print()
-    trace_node(get_node_name(0, 0), get_node_name(1, 0))
+    result = result and trace_path(get_node_name(0, 0), get_node_name(1, 0), route_tables)
     print()
-    trace_node(get_node_name(0, 0), get_node_name(18, 26))
+    result = result and trace_path(get_node_name(0, 0), get_node_name(18, 26), route_tables)
+    return result
+
+
+if __name__ == "__main__":
+    run_routing_test()

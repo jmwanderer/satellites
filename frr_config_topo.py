@@ -157,9 +157,13 @@ def gen_test_graph() -> networkx.Graph:
     graph.add_edge("R4", "R1")
     return graph
 
-
-if __name__ == "__main__":
-    # Run a simple test
+def test_config_graph() -> bool:
     g = gen_test_graph()
     annotate_graph(g)
     dump_graph(g)
+    return True
+
+
+if __name__ == "__main__":
+    # Run a simple test
+    test_config_graph()
