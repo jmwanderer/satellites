@@ -88,14 +88,14 @@ class SatSimulation:
                         self.client.set_link_state(satellite.name, neighbor, satellite.inter_plane_status)
 
     def run(self):
-        current_time = datetime.datetime.now(tz=datetime.UTC)
+        current_time = datetime.datetime.now(tz=datetime.timezone.utc)
         slice_delta = datetime.timedelta(seconds=SatSimulation.TIME_SLICE)
         while True:
             future_time = current_time + slice_delta
             print(f"update positions for {future_time}")
             self.updatePositions(future_time)
             self.updateInterPlaneStatus()
-            sleep_delta = future_time - datetime.datetime.now(tz=datetime.UTC)
+            sleep_delta = future_time - datetime.datetime.now(tz=datetime.timezone.utc)
             print("sleep")
             time.sleep(sleep_delta.seconds)
             self.send_updates()

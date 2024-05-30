@@ -11,7 +11,11 @@ class Client:
     def set_link_state(self, node1: str, node2: str, up: bool) -> None:
         try:
             print(f"send link state {node1}, {node2}, state up {up}")
-            r = requests.put(self.url, data={'node1_name': node1, 'node2_name': node2, 'up': up})
+            url = f"{self.url}/link"
+            state = "true" if up else "false"
+            r = requests.put(url, 
+                    json={'node1_name': node1, 'node2_name': node2, 'up': state})
+            print(r.text)
         except requests.exceptions.ConnectionError as e:
             print(e)
             pass
