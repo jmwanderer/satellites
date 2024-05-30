@@ -4,7 +4,6 @@ Load a TLE file and draw the Satellites, updating locations every 5 seconds.
 """
 
 # TODO:
-# - Click on a satellite and display information
 # - consider transforming arrow key input
 # - control speed of time
 
@@ -51,16 +50,23 @@ class PositionUpdate:
 
 
 done = False
-TIME_RATE = 60
+DEFAULT_TIME_RATE = 10  # Default to 10x speed
+time_rate = DEFAULT_TIME_RATE
 
 # Global variables accessed by both threads, not protected by a mutex
-# As currently structured, this should not cause a problem
+# As currently structured, this should not cause a problem (right??)
 last_time_sample: datetime.datetime = datetime.datetime.now(tz=datetime.UTC)
 current_vtime: datetime.datetime = last_time_sample
+
+# True means that the user has paused the motion, we freeze time
 vtime_paused: bool = False
 
 
 def vtime_now() -> datetime.datetime:
+    """
+    Generate the virtual time taking into account the time rate and
+    if the time is paused. 
+    """
     global last_time_sample
     global current_vtime
     global vtime_paused
@@ -68,7 +74,7 @@ def vtime_now() -> datetime.datetime:
         # Calculate delta from last time sample and add to current time
         time_now = datetime.datetime.now(tz=datetime.UTC)
         delta = time_now - last_time_sample
-        delta = delta * TIME_RATE
+        delta = delta * time_rate
         last_time_sample = time_now
         current_vtime += delta
     return current_vtime
@@ -87,19 +93,34 @@ def resume_vtime():
 
 
 def generate_positions(update_q: queue.Queue, sat_entries):
+    """
+    Loop generating future position for the earch and satellites and place
+    in the queue for consumption by the UI.
+
+    Notes:
+        - sleep during the update to give the UI a chance to run.
+        - pause when the queue gets full
+
+    """
     ts = load.timescale()
     first = True
-    future_seconds = min(60, 5 * TIME_RATE)
+    # Don't project more than 60 sec into the future.
+    # Otherwise satellite motion on strait lines can look obviously wrong.
+    # Particularly when the satellite decends below the surface of the earth.
+    future_seconds = min(60, 5 * time_rate)
 
     while not done:
         time_now = vtime_now()
         delta = datetime.timedelta(seconds=future_seconds)
         time_future = time_now + delta
         earliest_time_future = time_future
-        # Generate earth rotation location
         sf_time_now = ts.from_datetime(time_now)
         sf_time_future = ts.from_datetime(time_future)
+
+        # Generate earth rotation location
         if first:
+            # First time though, generate initial positions at time
+            # now in addition to the future time.
             geo = Geocentric([1, 0, 0], t=sf_time_now)
             lat, lon = wgs84.latlon_of(geo)
             # Calculate a magic number that seems to align with the image we use??
@@ -107,7 +128,7 @@ def generate_positions(update_q: queue.Queue, sat_entries):
             update = PositionUpdate("earth", (), rotate, True, time_now)
             update_q.put(update)
 
-        # Create future position
+        # Create future position for the earth
         geo = Geocentric([1, 0, 0], t=sf_time_future)
         lat, lon = wgs84.latlon_of(geo)
         # Calculate a magic number that seems to align with the image we use??
@@ -126,7 +147,7 @@ def generate_positions(update_q: queue.Queue, sat_entries):
                 if len(sat_entries) > 100:
                     # Spread out update generation throughout the interval.
                     duration = (
-                        future_seconds * 50 / len(sat_entries) / TIME_RATE
+                        future_seconds * 50 / len(sat_entries) / time_rate
                     ) * 0.9
                 time.sleep(duration)
                 recalc_time = True
@@ -163,21 +184,17 @@ def generate_positions(update_q: queue.Queue, sat_entries):
                 update_q.put(update)
             count += 1
 
-        print(f"generated locations for {count} satellites")
+        #print(f"generated locations for {count} satellites")
         first = False
-        print(f"vtime_now: {vtime_now()}")
-        print(f"time_future: {earliest_time_future}")
+        #print(f"vtime_now: {vtime_now()}")
+        #print(f"time_future: {earliest_time_future}")
         delta = earliest_time_future - vtime_now()
-        print(f"delta: {delta}")
-        sleep_time = delta / TIME_RATE
-        print(f"sleep time {sleep_time}")
+        #print(f"delta: {delta}")
+        sleep_time = delta / time_rate
+        #print(f"sleep time {sleep_time}")
         sleep_seconds = max(0, sleep_time.total_seconds() - 0.2)
-        print(f"sleep seconds {sleep_seconds}")
+        #print(f"sleep seconds {sleep_seconds}")
         time.sleep(sleep_seconds)
-
-
-base = ShowBase()
-
 
 class World(DirectObject):
 
@@ -214,6 +231,8 @@ class World(DirectObject):
         self.selected_sat = None
         self.update_q: queue.Queue = queue.Queue()
         self.setCameraPos()
+
+        # Virtual current time
         self.time = OnscreenText(
             text="time",
             parent=base.a2dTopLeft,
@@ -224,6 +243,7 @@ class World(DirectObject):
             style=1,
             mayChange=True,
         )
+        # Currently selected satellite
         self.info = OnscreenText(
             text="",
             parent=base.a2dTopLeft,
@@ -238,7 +258,7 @@ class World(DirectObject):
     def setCameraPos(self):
         altitude = 6373 + self.zoom**2 * 500
         zoom = -altitude * self.pos_scale
-        print(f"set camera y = {zoom}")
+        #print(f"set camera y = {zoom}")
         if zoom > -self.earth_size_scale - 1:
             zoom = -self.earth_size_scale - 1
         base.camera.setPos(0, zoom, 0)  # Set the camera position (X, Y, Z)
@@ -265,11 +285,16 @@ class World(DirectObject):
 
     def setup_elements(self, selection):
         if selection == "artificial":
+            # Use our canned torus topology
             self.sat_entries = self.build_sat_entries()
         else:
+            # Otherwise, load TLE date from a URL
             if selection not in World.URLS:
                 print(f"{selection} unknown")
-                print(list(World.URLS.keys()))
+                print("Available selections:")
+                for option in World.URLS.keys():
+                    print(f"\t{option}")
+                print("\tartificial (a canned 40x40 satellite network)")
                 sys.exit(-1)
 
             url = World.URLS[selection]
@@ -310,6 +335,7 @@ class World(DirectObject):
         self.base.setHpr(self.heading, self.pitch, 0)
 
     def clickTarget(self):
+        # User has clicked, find the satellite and mark as selected
         if base.mouseWatcherNode.hasMouse():
             mpos = base.mouseWatcherNode.getMouse()
             if self.selected_sat is not None:
@@ -396,10 +422,13 @@ class World(DirectObject):
     def processPositionUpdate(self, update: PositionUpdate):
         self.time.setText(vtime_now().isoformat(sep=" ", timespec="seconds"))
         if update.name == "earth":
-            print("rotate earth: %d degrees" % update.rotation)
+            #print("rotate earth: %d degrees" % update.rotation)
             if update.now:
+                # This is an initial value for time now
                 self.earth.setHpr(update.rotation, 0, 0)
             else:
+                # This is a value for the future, create an interval to
+                # move slowly to that position
                 interval = self.sat_intervals.get(update.name)
                 if interval is not None:
                     interval.pause()
@@ -410,7 +439,7 @@ class World(DirectObject):
                 if current_rotation > update.rotation:
                     self.earth.setHpr(current_rotation - 360, 0, 0)
                 interval = self.earth.hprInterval(
-                    delta.seconds / TIME_RATE, LVecBase3(update.rotation, 0, 0)
+                    delta.seconds / time_rate, LVecBase3(update.rotation, 0, 0)
                 )
                 if interval is not None:
                     interval.start()
@@ -425,12 +454,15 @@ class World(DirectObject):
         if update.now:
             satellite.setPos(x, y, z)
         else:
+            # Use the update for the future time to create an interval that will
+            # smoothly move the satellite to the future position.
+            # Clear any previous interval that was running
             interval = self.sat_intervals.get(update.name)
             if interval is not None:
                 interval.pause()
             time_now = vtime_now()
             delta = update.time - time_now
-            interval = satellite.posInterval(delta.seconds / TIME_RATE, Point3(x, y, z))
+            interval = satellite.posInterval(delta.seconds / time_rate, Point3(x, y, z))
             if interval is not None:
                 interval.start()
                 self.sat_intervals[update.name] = interval
@@ -444,6 +476,21 @@ class World(DirectObject):
 selection = "kuiper"
 if len(sys.argv) > 1:
     selection = sys.argv[1]
+if len(sys.argv) > 2:
+    time_rate = int(sys.argv[2])
+
+print("orbit set: [ <satellite set>  [ <time_factor> ]]")
+print()
+print(f"\tRunning '{selection}' set at {time_rate}X speed")
+print("\tUse arrow keys to move the view")
+print("\tUse + and - to zoom in and out")
+print("\tq to quit")
+print("\nClick on a satellite for more information")
+print()
+
+
+# Panda3D facility for manipulating image
+base = ShowBase()
 w = World()
 w.setup_elements(selection)
 base.run()
