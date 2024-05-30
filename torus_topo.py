@@ -61,13 +61,16 @@ def create_ring(graph, ring_num, num_ring_nodes):
     # Set parameters for this orbit
     num_rings: int = graph.graph["rings"]
     right_ascension: float = 360 / num_rings * ring_num
-    inclination: float = 53.9
+    inclination: float = graph.graph["inclination"]
 
     for node_num in range(num_ring_nodes):
         # Create a node in the ring
         node_name = get_node_name(ring_num, node_num)
         graph.add_node(node_name)
         mean_anomaly = 360 / num_ring_nodes * node_num
+        # offset 1/2 spacing for odd rings
+        if ring_num %2 == 1:
+            mean_anomaly += 360 / num_ring_nodes / 2
         orbit = OrbitData(right_ascension, inclination, mean_anomaly)
         orbit.assign_cat_num()
         graph.nodes[node_name]['orbit'] = orbit
@@ -95,6 +98,7 @@ def create_network(num_rings=NUM_RINGS, num_ring_nodes=NUM_RING_NODES):
     graph.graph["rings"] = num_rings
     graph.graph["ring_nodes"] = num_ring_nodes
     graph.graph["ring_list"] = []
+    graph.graph["inclination"] = 53.9
     prev_ring_num = None
     for ring_num in range(num_rings):
         create_ring(graph, ring_num, num_ring_nodes)
