@@ -1,8 +1,17 @@
 # Satellites
-Scripts and programs for visualizing and modeling satellites.
+Scripts and programs for visualizing and modeling satellite orbits and
+simulating satellite networks.
+
+We use Panda3D to run an interactive 3D view of satellites oribiting around the 
+earth, and use the Skyfield astronomy library to determin the position of
+the satellites.
 
 # Setup
-In the base directory:
+
+For the basic set of scripts, we use Panda#D, networkx, and skyfield.
+
+To run these, create and activate a Python virtual environment and use 
+pip to install the dependencies.  In the base directory:
 
 ```
 python3 -m venv venv
@@ -11,7 +20,11 @@ pip install -r requirements.txt
 ```
 
 # Animate Ideal Orbits
-Run an animation of a 40x40 LEO satellite conselation.
+We use Panda3d elements to simulate the orbits of a satellite 
+network by creating 40 rotating disks inclined at 53 degrees and 
+attaching spheres to the disks represent satellites.
+
+Run an animation of a 40x40 LEO satellite conselation:
 
 ```
 python animate_orbits.py
@@ -21,6 +34,11 @@ python animate_orbits.py
 - Use arrow keys to change the view
 
 ![screenshot](orbits.png)
+
+# Calculate Actual Satellite Positions
+We use the Skyfield astronomy library to calcualte the position of
+earth satellites.
+
 
 # Animate Real Satellite Groups
 Use TLE files to position and update groups of Satellites in real time
