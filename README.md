@@ -41,17 +41,22 @@ earth satellites.
 
 
 # Animate Real Satellite Groups
-Use TLE files to position and update groups of Satellites in real time
+Use TLE files to position and update groups of Satellites in real time:
 
 ```
-python orbit_set.py starlink
+python orbit_set.py [ system [ time-factor] ]
 ```
 
-The availabel constellations are:
+The available systems are:
 - starlink
 - stations (space stations)
 - kuiper
 - GPS
+- artificial (a 40x40 system)
+
+The time-rate defaults to 2X real time, and depending on the number of 
+satellites in the system and the speed of the computer and GPU running the
+software, may be able to run at 10X real time.
 
 You can control the image display:
 - + and - top zoom in and out (shift + does not yet work)
