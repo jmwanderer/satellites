@@ -104,18 +104,54 @@ python test_large_frr.py
 
 
 # Mininet Emulation
-Run an mininet emulation of an FRR based network toplogy.
+Run an mininet based emulation of an FRR based network toplogy.
 
-Must be run as root in a Mininet/FRR package.
-See [mininet_frr](http://github.com/jmwanderer/mininet_frr)
+This setup contains two parts:
+- A mininet process that creates network containers and launches FRR processes.
+- A physical simulator process that calculates satellite positions and link states.
 
+The network emulation uses a FastAPI based interface for control and monitoring.
+
+## Setup
+Running the full emulation requires Mininet and FRR to be installed as well as the requirements
+listed in mnet/requriements.txt
+
+```
+pip install -r mnet/requirements.txt
+```
+
+Since mininet must run as root, it is recommended that you run the full emulation in a VM.
+See [mininet_frr](http://github.com/jmwanderer/mininet_frr) for an environment that will run
+the full emulation.
+
+## Run Full Emulation
 
 ```
 sudo python -m mnet.run_mn
 ```
 
+## Run the UI / Sim Stub
+
+For development and test, the FastAPI driver and network physical simulator
+can be run without running mininet and the FRR processes. This is:
+- might more lieghtweight
+- does not run as root
+- is easy and safe to run without using a VM
+- does not require FRR to be installed
+- will not need Mininet to be installed
+
+Running the stub simulates that satellite positions and physical events, 
+provides the UI, but does not emulate the network.
+
+```
+sudo python -m mnet.run_ui_stub
+```
+
+## ToDo / Plans
+
 The network currently just runs an OSPF daemon on each node to exchange.
 Possible plans include:
+- Add a flat world map and chart the positions of the satellites
 - Adding network link up and down events as satellites move in orbit
 - Adding hosts to connect as staellites move overhead
 - Adding an OF controller to handle host connectivity
