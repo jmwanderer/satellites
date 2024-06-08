@@ -110,7 +110,11 @@ This setup contains two parts:
 - A mininet process that creates network containers and launches FRR processes.
 - A physical simulator process that calculates satellite positions and link states.
 
-The network emulation uses a FastAPI based interface for control and monitoring.
+The network emulation uses a FastAPI based interface for control and monitoring and
+provides a FastAPI user interface. 
+
+Connect to http://localhost:8000 for the UI.
+(Substitute name / IP address of VM instance if using a VM and web browser is outside of the VM)
 
 ## Setup
 Running the full emulation requires Mininet and FRR to be installed as well as the requirements
@@ -133,8 +137,8 @@ sudo python -m mnet.run_mn
 ## Run the UI / Sim Stub
 
 For development and test, the FastAPI driver and network physical simulator
-can be run without running mininet and the FRR processes. This is:
-- might more lieghtweight
+can be run without running mininet and the FRR processes. Running the stub:
+- is much more light weight
 - does not run as root
 - is easy and safe to run without using a VM
 - does not require FRR to be installed
@@ -152,9 +156,15 @@ sudo python -m mnet.run_ui_stub
 The network currently just runs an OSPF daemon on each node to exchange.
 Possible plans include:
 - Add a flat world map and chart the positions of the satellites
-- Adding network link up and down events as satellites move in orbit
+- Add ground stations at fixed positions
+    - Create and support a node type: SAT or GROUND
+    - Initially make ground a mininet host.
+- Create links between ground stations and nearby satellites
+- Satellites to inject OSPF route for connected ground station
+- Ground station sets and updates default routes to preferred uplink
+
 - Adding hosts to connect as staellites move overhead
-- Adding an OF controller to handle host connectivity
+- Adding an OF controller to handle host connectivity (at some point)
 - Using an agent on host and satellites for control and connectivity testing
 
 
