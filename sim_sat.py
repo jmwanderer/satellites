@@ -21,6 +21,7 @@ import networkx
 from skyfield.api import load, wgs84 # type: ignore
 from skyfield.api import EarthSatellite # type: ignore
 from skyfield.positionlib import Geocentric # type: ignore
+from skyfield.toposlib import GeographicPosition # type: ignore
 from skyfield.units import Angle # type: ignore
 
 
@@ -36,6 +37,11 @@ class Satellite:
     inter_plane_status: bool = True
     prev_inter_plane_status: bool = True
 
+@dataclass
+class GroundStation:
+    """Represents an instance of a ground station"""
+    name: str
+    position: GeographicPosition
 
 class SatSimulation:
     """
@@ -49,7 +55,14 @@ class SatSimulation:
         self.graph = graph
         self.ts = load.timescale()
         self.satellites: list[Satellite] = []
+        self.ground_stations: list[GroundStation] = []
         self.client: mnet.client.Client = mnet.client.Client("http://127.0.0.0:8000")
+
+        for name in torus_topo.ground_stations(graph):
+            node = graph.nodes[name]
+            position = wgs84.latlon(node[torus_topo.LAT], node[torus_topo.LON])
+            ground_station = GroundStation(name, position)
+            self.ground_stations.append(ground_station)
 
         for name in torus_topo.satellites(graph):
             orbit = graph.nodes[name]["orbit"]
@@ -60,13 +73,33 @@ class SatSimulation:
             self.satellites.append(satellite)
 
     def updatePositions(self, future_time: datetime.datetime):
+        sfield_time = self.ts.from_datetime(future_time)
         for satellite in self.satellites:
-            sfield_time = self.ts.from_datetime(future_time)
             satellite.geo = satellite.earth_sat.at(sfield_time)
             lat, lon = wgs84.latlon_of(satellite.geo)
             satellite.lat = lat
             satellite.lon = lon
             print(f"{satellite.name} Lat: {satellite.lat}, Lon: {satellite.lon}")
+
+        for ground_station in self.ground_stations:
+            for satellite in self.satellites:
+                # Calculate az for close satellites
+                if SatSimulation.nearby(ground_station, satellite):
+                    difference = satellite.earth_sat - ground_station.position
+                    topocentric = difference.at(sfield_time)
+                    alt, az, d = topocentric.altaz()
+                    if alt.degrees > 35:
+                        print(f"{satellite.name} Lat: {satellite.lat}, Lon: {satellite.lon}")
+                        print(f"{ground_station.name} Lat: {ground_station.position.latitude}, Lon: {ground_station.position.longitude}")
+                        print(f"ground {ground_station.name}, sat {satellite.name}: {alt}, {az}, {d.km}")
+
+    @staticmethod
+    def nearby(ground_station: GroundStation, satellite: Satellite) -> bool:
+        return (satellite.lon.degrees > ground_station.position.longitude.degrees - 15 and
+                satellite.lon.degrees < ground_station.position.longitude.degrees + 15 and
+                satellite.lat.degrees > ground_station.position.latitude.degrees - 10 and 
+                satellite.lat.degrees < ground_station.position.latitude.degrees + 10)
+ 
 
     def updateInterPlaneStatus(self):
         inclination = self.graph.graph["inclination"]

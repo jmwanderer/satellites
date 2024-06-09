@@ -44,6 +44,18 @@ def create_network(num_rings: int =NUM_RINGS, num_ring_nodes: int =NUM_RING_NODE
         edge["up"] = True
     return graph
 
+def ground_stations(graph: networkx.Graph) -> list[str]:
+    """
+    Return a list of all node names where the node is of type ground
+    """
+    # Consider converting to using yield
+    result = []
+    for name in graph.nodes:
+        if graph.nodes[name][TYPE] == TYPE_GROUND:
+            result.append(name)
+    return result
+
+
 def satellites(graph: networkx.Graph) -> list[str]:
     """
     Return a list of all node names where the node is of type satellite

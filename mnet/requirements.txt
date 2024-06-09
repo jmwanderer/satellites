@@ -1,4 +1,6 @@
 networkx
 skyfield
 fastapi
+mininet
+requests
 
