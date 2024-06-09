@@ -13,6 +13,11 @@ import datetime
 # Default network size
 NUM_RINGS = 40
 NUM_RING_NODES = 40
+TYPE = "type"
+TYPE_SAT = "satellite"
+TYPE_GROUND = "ground_station"
+LAT = "latitude"
+LON = "longitude"
 
 def create_network(num_rings: int =NUM_RINGS, num_ring_nodes: int =NUM_RING_NODES) -> networkx.Graph:
     """
@@ -32,11 +37,23 @@ def create_network(num_rings: int =NUM_RINGS, num_ring_nodes: int =NUM_RING_NODE
     if prev_ring_num is not None:
         connect_rings(graph, prev_ring_num, 0, num_ring_nodes)
 
+    add_ground_stations(graph)
+
     # Set all edges to up
     for edge_name, edge in graph.edges.items():
         edge["up"] = True
     return graph
 
+def satellites(graph: networkx.Graph) -> list[str]:
+    """
+    Return a list of all node names where the node is of type satellite
+    """
+    # Consider converting to using yield
+    result = []
+    for name in graph.nodes:
+        if graph.nodes[name][TYPE] == TYPE_SAT:
+            result.append(name)
+    return result
 
 # Format for generating TLE oribit information
 # Use canned IU, mean motion derivitivs, and drag term data
@@ -103,6 +120,7 @@ def create_ring(graph: networkx.Graph, ring_num: int , num_ring_nodes: int) -> N
         # Create a node in the ring
         node_name = get_node_name(ring_num, node_num)
         graph.add_node(node_name)
+        graph.nodes[node_name][TYPE] = TYPE_SAT
         mean_anomaly = 360 / num_ring_nodes * node_num
         # offset 1/2 spacing for odd rings
         if ring_num % 2 == 1:
@@ -129,6 +147,33 @@ def connect_rings(graph: networkx.Graph, ring1: int, ring2: int, num_ring_nodes:
         node2_name = get_node_name(ring2, node_num)
         graph.add_edge(node1_name, node2_name)
         graph.edges[node1_name, node2_name]["inter_ring"] = True
+
+
+def add_ground_stations(graph: networkx.Graph) -> None:
+    graph.add_node("G_PAO")
+    node = graph.nodes["G_PAO"]
+    node[TYPE] = TYPE_GROUND
+    node[LAT] = 37.44651
+    node[LON] = -122.13861
+
+    graph.add_node("G_SYD")
+    node = graph.nodes["G_SYD"]
+    node[TYPE] = TYPE_GROUND
+    node[LAT] = -33.94056
+    node[LON] = 151.17268
+
+    graph.add_node("G_ZRH")
+    node = graph.nodes["G_ZRH"]
+    node[TYPE] = TYPE_GROUND
+    node[LAT] = 47.45516
+    node[LON] = 8.56350
+
+    graph.add_node("G_HND")
+    node = graph.nodes["G_HND"]
+    node[TYPE] = TYPE_GROUND
+    node[LAT] = 35.54852
+    node[LON] = 139.78079
+
 
 #
 # Functions to exercise basic routing over the torus topology graph 
@@ -232,7 +277,7 @@ def run_routing_test() -> bool:
     print(graph.nodes)
     print(graph.edges)
 
-    for node in graph.nodes:
+    for node in satellites(graph):
         print(node)
         orbit = graph.nodes[node]["orbit"]
         print(orbit)
@@ -249,6 +294,7 @@ def run_routing_test() -> bool:
     for node_name in graph.nodes():
         print("generate routes %s" % node_name)
         route_tables[node_name] = generate_route_table(graph, node_name)
+        print(f"len: {len(route_tables[node_name])}")
 
     result: bool = trace_path(get_node_name(0, 0), get_node_name(0, 1), route_tables)
     print()

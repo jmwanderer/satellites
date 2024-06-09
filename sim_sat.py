@@ -50,12 +50,13 @@ class SatSimulation:
         self.ts = load.timescale()
         self.satellites: list[Satellite] = []
         self.client: mnet.client.Client = mnet.client.Client("http://127.0.0.0:8000")
-        for node in graph.nodes:
-            orbit = graph.nodes[node]["orbit"]
+
+        for name in torus_topo.satellites(graph):
+            orbit = graph.nodes[name]["orbit"]
             ts = load.timescale()
             l1, l2 = orbit.tle_format()
-            earth_satellite = EarthSatellite(l1, l2, node, ts)
-            satellite = Satellite(node, earth_satellite)
+            earth_satellite = EarthSatellite(l1, l2, name, ts)
+            satellite = Satellite(name, earth_satellite)
             self.satellites.append(satellite)
 
     def updatePositions(self, future_time: datetime.datetime):

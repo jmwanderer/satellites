@@ -10,6 +10,8 @@ Currently assumes all nodes run OSPF in one area.
 import ipaddress
 import networkx
 
+import torus_topo
+
 
 def annotate_graph(graph: networkx.Graph):
     """
@@ -54,7 +56,8 @@ def annotate_graph(graph: networkx.Graph):
         graph.adj[n1][n2]["intf"][n1] = intf1
         graph.adj[n2][n1]["intf"][n2] = intf2
 
-    for name, node in graph.nodes.items():
+    for name in torus_topo.satellites(graph):
+        node = graph.nodes[name]
         node["ospf"] = create_ospf_config(graph, name)
         node["vtysh"] = create_vtysh_config(name)
         node["daemons"] = create_daemons_config()
@@ -147,9 +150,13 @@ def gen_test_graph() -> networkx.Graph:
     graph = networkx.Graph()
 
     graph.add_node("R1")
+    graph.nodes["R1"][torus_topo.TYPE] = torus_topo.TYPE_SAT
     graph.add_node("R2")
+    graph.nodes["R2"][torus_topo.TYPE] = torus_topo.TYPE_SAT
     graph.add_node("R3")
+    graph.nodes["R3"][torus_topo.TYPE] = torus_topo.TYPE_SAT
     graph.add_node("R4")
+    graph.nodes["R4"][torus_topo.TYPE] = torus_topo.TYPE_SAT
 
     graph.add_edge("R1", "R2")
     graph.add_edge("R2", "R3")

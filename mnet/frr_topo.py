@@ -175,11 +175,12 @@ class NetxTopo(mininet.topo.Topo):
 
     def build(self, **_opts):
         # Create routers
-        for name, node in self.graph.nodes.items():
+
+        for name in torus_topo.satellites(graph):
+            node = graph.nodes[name]
             ip = node.get("ip")
             if ip is not None:
                 ip = format(ip)
-
             self.addHost(
                 name,
                 cls=FrrRouter,
@@ -245,12 +246,13 @@ class NetxTopo(mininet.topo.Topo):
     def get_router_list(self) -> list[tuple[str]]:
         result = []
         for name, node in self.graph.nodes.items():
-            ip = node.get("ip")
-            if ip is not None:
-                ip = format(ip)
-            else:
-                ip = ""
-            result.append((name, ip))
+            if graph.nodes[name][torus_topo.TYPE] == torus_topo.TYPE_SAT:
+                ip = node.get("ip")
+                if ip is not None:
+                    ip = format(ip)
+                else:
+                    ip = ""
+                result.append((name, ip))
         return result
 
     def get_link_list(self) -> list[tuple[str]]:
@@ -345,5 +347,6 @@ if __name__ == "__main__":
     topo.build()
 
     for name, node in graph.nodes.items():
-        print(node["ospf"])
-        print()
+        if graph.nodes[name][torus_topo.TYPE] == torus_topo.TYPE_SAT:
+            print(node["ospf"])
+            print()

@@ -268,11 +268,12 @@ class World(DirectObject):
     def build_sat_entries(self) -> list[EarthSatellite]:
         graph = torus_topo.create_network()
         result = []
-        for node in graph.nodes:
-            orbit = graph.nodes[node]["orbit"]
+
+        for name in torus_topo.satellites(graph):
+            orbit = graph.nodes[name]["orbit"]
             ts = load.timescale()
             l1, l2 = orbit.tle_format()
-            satellite = EarthSatellite(l1, l2, node, ts)
+            satellite = EarthSatellite(l1, l2, name, ts)
             result.append(satellite)
         return result
 
