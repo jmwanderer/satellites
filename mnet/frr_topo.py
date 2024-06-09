@@ -176,8 +176,8 @@ class NetxTopo(mininet.topo.Topo):
     def build(self, **_opts):
         # Create routers
 
-        for name in torus_topo.satellites(graph):
-            node = graph.nodes[name]
+        for name in torus_topo.satellites(self.graph):
+            node = self.graph.nodes[name]
             ip = node.get("ip")
             if ip is not None:
                 ip = format(ip)
