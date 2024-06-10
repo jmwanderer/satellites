@@ -142,7 +142,7 @@ sudo python -m mnet.run_mn
 
 Run the satellite location simulation:
 ```
-python -m geosimsat.py
+python geosimsat.py
 ```
 
 ## Run the UI / Sim Stub
@@ -166,7 +166,7 @@ sudo python -m mnet.run_ui_stub
 
 Run the satellite location simulation:
 ```
-python -m geosimsat.py
+python geosimsat.py
 ```
 
 ## TODO / Plans
