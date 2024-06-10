@@ -110,6 +110,7 @@ def root(request: Request):
         events = []
         for entry in context.events[-min(len(context.events), 10) :]:
             events.append((entry[0].time().isoformat(timespec="seconds"), entry[1]))
+        stations = context.netxTopo.get_ground_stations()
 
     info = {
         "rings": rings,
@@ -122,6 +123,7 @@ def root(request: Request):
         "links": links,
         "events": events,
         "stats": stats,
+        "stations": stations,
     }
     return templates.TemplateResponse(
         request=request, name="main.html", context={"info": info}
@@ -185,7 +187,10 @@ def set_uplinks(uplinks: simapi.UpLinks):
     with get_context() as context:
         print(f"set uplinks for {uplinks.ground_node}")
         # TODO: add ground stations and uplinks to NxTopo
-        # Add a call to sedt the uplinks which will diff and change the links
+        # Add a call to set the uplinks which will diff and change the links
+        context.netxTopo.set_station_uplinks(uplinks.ground_node, 
+                                             uplinks.uplinks,
+                                             context.mn_net)
         return {"status": "OK"}
 
 

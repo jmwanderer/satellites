@@ -6,6 +6,7 @@ import tempfile
 import datetime
 import shutil
 import random
+from dataclasses import dataclass, field
 
 import networkx
 import mininet.topo
@@ -16,12 +17,33 @@ import mininet.util
 
 import torus_topo
 import frr_config_topo
+import simapi
 import mnet.pmonitor
 
+@dataclass
+class Uplink:
+    sat_name: str
+    distance: int
 
-class FrrRouter(mininet.node.Node):
+class GroundStation():
+    """
+    State for a Ground Station
+    
+    Tracks established uplinks to satellites. 
+    Not a mininet node. 
+    """
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.uplinks: list[Uplink] = []
+
+    def set_uplinks(self, uplinks: list[Uplink]) -> None:
+        self.uplinks = uplinks
+
+class FrrRouterNode(mininet.node.Node):
     """
     Support an FRR router under mininet.
+    This is a mininet node
     - handles the the FRR config files, starting and stopping FRR.
 
     Includes an optional loopback interface with a /31 subnet mask
@@ -49,8 +71,8 @@ class FrrRouter(mininet.node.Node):
 
     def config(self, **params):
         # Get frr config and save to frr config directory
-        cfg_dir = FrrRouter.CFG_DIR.format(node=self.name)
-        log_dir = FrrRouter.LOG_DIR.format(node=self.name)
+        cfg_dir = FrrRouterNode.CFG_DIR.format(node=self.name)
+        log_dir = FrrRouterNode.LOG_DIR.format(node=self.name)
         uinfo = pwd.getpwnam("frr")
 
         if not os.path.exists(cfg_dir):
@@ -125,6 +147,7 @@ class NetxTopo(mininet.topo.Topo):
     def __init__(self, graph: networkx.Graph):
         self.graph = graph
         self.routers: list[str] = []
+        self.ground_stations: dict[str, GroundStation] = {}
         self.stat_samples = []
         fd, self.db_file = tempfile.mkstemp(suffix=".sqlite")
         open(fd, "r").close()
@@ -183,13 +206,21 @@ class NetxTopo(mininet.topo.Topo):
                 ip = format(ip)
             self.addHost(
                 name,
-                cls=FrrRouter,
+                cls=FrrRouterNode,
                 ip=ip,
                 ospf=node["ospf"],
                 vtysh=node["vtysh"],
                 daemons=node["daemons"],
             )
             self.routers.append(name)
+
+        for name in torus_topo.ground_stations(self.graph):
+            node = self.graph.nodes[name]
+            ip = node.get("ip")
+            self.addHost(name, 
+                         ip=ip)
+            station = GroundStation(name)
+            self.ground_stations[name] = station
 
         # Create links between routers
         for name, edge in self.graph.edges.items():
@@ -289,6 +320,9 @@ class NetxTopo(mininet.topo.Topo):
             }
         return result
 
+    def get_ground_stations(self) -> list[GroundStation]:
+        return [ x for x in self.ground_stations.values()]
+
     def set_link_state(
         self, node1: str, node2: str, state_up: bool, net: mininet.net.Mininet
     ):
@@ -318,6 +352,23 @@ class NetxTopo(mininet.topo.Topo):
 
         return False, False
 
+    def set_station_uplinks(self, 
+                            station_name: str, 
+                            uplinks: list[simapi.UpLink],
+                            net: mininet.net.Mininet) -> bool:
+        if not station_name in self.ground_stations:
+            return False
+        station = self.ground_stations[station_name]
+        if len(station.uplinks) == 0:
+            # For testing, just create links once
+            links = []
+            for link in uplinks:
+                links.append(Uplink(link.sat_node, link.distance))
+                self._create_link(station_name, link.sat_node, net)
+            station.set_uplinks(links)
+
+    def _create_link(self, node1: str, node2: str, net: mininet.net.Mininet):
+        net.addLink(node1, node2)
 
 class NetxTopoStub(NetxTopo):
     def __init__(self, graph: networkx.Graph):
@@ -327,6 +378,10 @@ class NetxTopoStub(NetxTopo):
         good_count: int = random.randrange(20)
         total_count: int = random.randrange(20) + good_count
         return good_count, total_count
+
+    def _create_link(self, node1: str, node2: str, net: mininet.net.Mininet):
+        print(f"create link {node1} - {node2}" )
+        pass
 
     def _config_link_state(
         self, node1: str, node2: str, state_up: bool, net: mininet.net.Mininet

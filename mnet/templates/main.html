@@ -92,6 +92,21 @@
     );
   </script>
 
+  	<h2>Ground Stations</h2>
+	<ul>
+	{% for entry in info["stations"] %}
+		<li>Station: {{ entry.name }} 
+			<ul>
+			{% for link in entry.uplinks %}
+			<li>
+				Uplink: {{ link.sat_name }} {{ link.distance }} km
+			</li>
+			{% endfor %}
+			</ul>
+		</li>
+	{% endfor %}
+	</ul>
+
 	<h2>Routers ({{ info["routers"]|length }}) </h2>
 	<ul>
 	{% for entry in info["routers"] %}
