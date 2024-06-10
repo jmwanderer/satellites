@@ -1,22 +1,17 @@
 #!/usr/bin/python3
 
 """
-Run a mininet instance of FRR routers in a torus topology.
+Run network simulation without mininet.
+The NetxTopoStub stubs our the functions that interact with mininet.
+State is generated, UI available, but no routing instances are created and run.
 """
 import sys
-
-sys.path.append("/usr/lib/python3/dist-packages")
 
 from mininet.net import Mininet
 from mininet.log import setLogLevel, info
 from mininet.cli import CLI
 import mnet.driver
 
-# TODO:
-# - Run frr deamons
-# - Create configs for frr daemons
-
-import networkx
 import torus_topo
 import frr_config_topo
 import mnet.frr_topo

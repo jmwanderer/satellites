@@ -130,14 +130,27 @@ the full emulation.
 
 ## Run Full Emulation
 
+By default the simulation runs with a 4 ring by 4 satellite per ring configuration.
+You can run a larger config by specifying the number of rings and nodes per
+ring on the run_mn and geosimsat command links. Obviously these should be
+the same.
+
+Run the mininet environment:
 ```
 sudo python -m mnet.run_mn
+```
+
+Run the satellite location simulation:
+```
+python -m geosimsat.py
 ```
 
 ## Run the UI / Sim Stub
 
 For development and test, the FastAPI driver and network physical simulator
-can be run without running mininet and the FRR processes. Running the stub:
+can be run without running mininet and the FRR processes. The mininet python libraries
+are needed, but FRR does not need to be installed.
+Running the stub:
 - is much more light weight
 - does not run as root
 - is easy and safe to run without using a VM
@@ -151,7 +164,12 @@ provides the UI, but does not emulate the network.
 sudo python -m mnet.run_ui_stub
 ```
 
-## ToDo / Plans
+Run the satellite location simulation:
+```
+python -m geosimsat.py
+```
+
+## TODO / Plans
 
 The network currently just runs an OSPF daemon on each node to exchange.
 Possible plans include:

@@ -184,6 +184,23 @@ def set_link(link: Link):
     return {"status": "OK"}
 
 
+class UpLink(BaseModel):
+    sat_node: str
+    distance: int
+
+class UpLinks(BaseModel):
+    ground_node: str
+    uplinks: list[UpLink]
+
+@app.put("/uplinks")
+def set_uplinks(uplinks: UpLinks):
+    with get_context() as context:
+        print(f"set uplinks for {uplinks.ground_node}")
+        # TODO: add ground stations and uplinks to NxTopo
+        # Add a call to sedt the uplinks which will diff and change the links
+        return {"status": "OK"}
+
+
 @app.get("/stats/total")
 def stats_total():
     with get_context() as context:

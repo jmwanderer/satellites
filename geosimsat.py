@@ -1,15 +1,16 @@
 """
+Geographic Satellite Simulator
 Simulate location changes in a satellite network in real time.
 
+Simulate in real time specific events in a satellite network:
 Generate events for:
-    - Satellite position change
+    - Satellite position - based on TLE data specs
     - horizontal links down above and below a critical latitude
     - new / break  connections to ground stations
     - new / break connections to end hosts
-
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import sys
 import datetime
 import time
@@ -38,10 +39,19 @@ class Satellite:
     prev_inter_plane_status: bool = True
 
 @dataclass
+class Uplink:
+    """Represents a link between the ground and a satellite"""
+    satellite_name: str
+    ground_name: str
+    distance: int
+
+@dataclass
 class GroundStation:
     """Represents an instance of a ground station"""
     name: str
     position: GeographicPosition
+    uplinks: list[Uplink] = field(default_factory=list)
+
 
 class SatSimulation:
     """
@@ -81,18 +91,6 @@ class SatSimulation:
             satellite.lon = lon
             print(f"{satellite.name} Lat: {satellite.lat}, Lon: {satellite.lon}")
 
-        for ground_station in self.ground_stations:
-            for satellite in self.satellites:
-                # Calculate az for close satellites
-                if SatSimulation.nearby(ground_station, satellite):
-                    difference = satellite.earth_sat - ground_station.position
-                    topocentric = difference.at(sfield_time)
-                    alt, az, d = topocentric.altaz()
-                    if alt.degrees > 35:
-                        print(f"{satellite.name} Lat: {satellite.lat}, Lon: {satellite.lon}")
-                        print(f"{ground_station.name} Lat: {ground_station.position.latitude}, Lon: {ground_station.position.longitude}")
-                        print(f"ground {ground_station.name}, sat {satellite.name}: {alt}, {az}, {d.km}")
-
     @staticmethod
     def nearby(ground_station: GroundStation, satellite: Satellite) -> bool:
         return (satellite.lon.degrees > ground_station.position.longitude.degrees - 15 and
@@ -100,6 +98,25 @@ class SatSimulation:
                 satellite.lat.degrees > ground_station.position.latitude.degrees - 10 and 
                 satellite.lat.degrees < ground_station.position.latitude.degrees + 10)
  
+    def updateUplinkStatus(self, future_time: datetime.datetime):
+        """
+        Update the links between ground stations and satellites
+        """
+        sfield_time = self.ts.from_datetime(future_time)
+        for ground_station in self.ground_stations:
+            ground_station.uplinks = [] 
+            for satellite in self.satellites:
+                # Calculate az for close satellites
+                if SatSimulation.nearby(ground_station, satellite):
+                    difference = satellite.earth_sat - ground_station.position
+                    topocentric = difference.at(sfield_time)
+                    alt, az, d = topocentric.altaz()
+                    if alt.degrees > 35:
+                        uplink = Uplink(satellite.name, ground_station.name, d.km)
+                        ground_station.uplinks.append(uplink)
+                        print(f"{satellite.name} Lat: {satellite.lat}, Lon: {satellite.lon}")
+                        print(f"{ground_station.name} Lat: {ground_station.position.latitude}, Lon: {ground_station.position.longitude}")
+                        print(f"ground {ground_station.name}, sat {satellite.name}: {alt}, {az}, {d.km}")
 
     def updateInterPlaneStatus(self):
         inclination = self.graph.graph["inclination"]
@@ -120,6 +137,12 @@ class SatSimulation:
                 for neighbor in self.graph.adj[satellite.name]: 
                     if self.graph.edges[satellite.name, neighbor]["inter_ring"]:
                         self.client.set_link_state(satellite.name, neighbor, satellite.inter_plane_status)
+        
+        for ground_station in self.ground_stations:
+            links = []
+            for uplink in ground_station.uplinks:
+                links.append((uplink.satellite_name, int(uplink.distance)))
+            self.client.set_uplinks(ground_station.name, links)
 
     def run(self):
         current_time = datetime.datetime.now(tz=datetime.timezone.utc)
@@ -128,6 +151,7 @@ class SatSimulation:
             future_time = current_time + slice_delta
             print(f"update positions for {future_time}")
             self.updatePositions(future_time)
+            self.updateUplinkStatus(future_time)
             self.updateInterPlaneStatus()
             sleep_delta = future_time - datetime.datetime.now(tz=datetime.timezone.utc)
             print("sleep")

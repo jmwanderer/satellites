@@ -11,20 +11,17 @@ from mininet.log import setLogLevel, info
 from mininet.cli import CLI
 import mnet.driver
 
-# TODO:
-# - Run frr deamons
-# - Create configs for frr daemons
-
-import networkx
 import torus_topo
 import frr_config_topo
 import mnet.frr_topo
 
 
 def signal_handler(sig, frame):
+    """
+    Make a ^C start a clean shutdown. Needed to stop all of the FRR processes.
+    """
     print("Ctrl-C recieved, shutting down....")
     mnet.driver.invoke_shutdown()
-
 
 def run(num_rings, num_routers, use_cli):
     # Create a networkx graph annoted with FRR configs

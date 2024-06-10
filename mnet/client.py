@@ -20,5 +20,19 @@ class Client:
             print(e)
             pass
 
+    def set_uplinks(self, ground_node: str, links: list[tuple[str, int]]) -> None:
+        try:
+            print(f"send up links: {ground_node}")
+            url = f"{self.url}/uplinks"
+            data = { "ground_node": ground_node, "uplinks": []}
+            for link in links:
+                data["uplinks"].append({ "sat_node": link[0], "distance": link[1]})
+            print(data)
+            r = requests.put(url, json=data)
+            print(r.text)
+        except requests.exceptions.ConnectionError as e:
+            print(e)
+
+
 #client = Client("http://localhost:5000")
 #client.set_link_state("R1", "R2", True)
