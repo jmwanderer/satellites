@@ -192,4 +192,5 @@ Possible plans include:
 - [Network topology design at 27,000 km.hour](https://satnetwork.github.io)
 - [Celes Track Satellite Catalog](https://celestrak.org/satcat/search.php)
 - [NetworkX](https://networkx.org/documentation/stable/index.html)
+- [draft-li-arch-sat-04][https://datatracker.ietf.org/doc/html/draft-li-arch-sat-04]
 

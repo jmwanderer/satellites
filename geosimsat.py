@@ -16,7 +16,7 @@ import datetime
 import time
 
 import torus_topo
-import mnet.client
+import simclient
 
 import networkx
 from skyfield.api import load, wgs84 # type: ignore
@@ -66,7 +66,7 @@ class SatSimulation:
         self.ts = load.timescale()
         self.satellites: list[Satellite] = []
         self.ground_stations: list[GroundStation] = []
-        self.client: mnet.client.Client = mnet.client.Client("http://127.0.0.0:8000")
+        self.client: simclient.Client = simclient.Client("http://127.0.0.0:8000")
 
         for name in torus_topo.ground_stations(graph):
             node = graph.nodes[name]

@@ -8,9 +8,11 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from mnet.frr_topo import NetxTopo
 import uvicorn
 import mininet
+
+from mnet.frr_topo import NetxTopo
+import simapi
 
 
 # TODO:
@@ -165,14 +167,9 @@ def view_link(request: Request, node1: str, node2: str):
     )
 
 
-class Link(BaseModel):
-    node1_name: str
-    node2_name: str
-    up: bool
-
 
 @app.put("/link")
-def set_link(link: Link):
+def set_link(link: simapi.Link):
     with get_context() as context:
         state = "up" if link.up else "down"
         context.add_event(f"set link {link.node1_name} - {link.node2_name} {state}")
@@ -183,17 +180,8 @@ def set_link(link: Link):
         return {"error": err}
     return {"status": "OK"}
 
-
-class UpLink(BaseModel):
-    sat_node: str
-    distance: int
-
-class UpLinks(BaseModel):
-    ground_node: str
-    uplinks: list[UpLink]
-
 @app.put("/uplinks")
-def set_uplinks(uplinks: UpLinks):
+def set_uplinks(uplinks: simapi.UpLinks):
     with get_context() as context:
         print(f"set uplinks for {uplinks.ground_node}")
         # TODO: add ground stations and uplinks to NxTopo
