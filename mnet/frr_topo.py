@@ -21,9 +21,18 @@ import simapi
 import mnet.pmonitor
 
 @dataclass
+class IPPoolEntry:
+    network: str
+    ip1: str
+    ip2: str
+    used: bool = False
+
+@dataclass
 class Uplink:
     sat_name: str
     distance: int
+    ip_pool_entry: IPPoolEntry
+
 
 class GroundStation():
     """
@@ -33,12 +42,50 @@ class GroundStation():
     Not a mininet node. 
     """
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, uplinks: list[dict[str, str]]) -> None:
         self.name = name
         self.uplinks: list[Uplink] = []
+        self.ip_pool: list[IPPoolEntry] = []
+        for link in uplinks:
+            entry = IPPoolEntry(network=format(link["nw"]),
+                                ip1=format(link["ip1"]),
+                                ip2=format(link["ip2"]))
+            self.ip_pool.append(entry)
+            print(f"added pool entry {entry.network}")
 
-    def set_uplinks(self, uplinks: list[Uplink]) -> None:
-        self.uplinks = uplinks
+    def has_uplink(self, sat_name: str) -> bool:
+        for uplink in self.uplinks:
+            if uplink.sat_name == sat_name:
+                return True
+        return False
+
+    def sat_links(self) -> list[str]:
+        """
+        Return a list of satellite names to which we have uplinks
+        """
+        return [uplink.name for uplink in self.uplinks]
+
+    def _get_pool_entry(self) -> IPPoolEntry | None:
+        for entry in self.ip_pool:
+            if not entry.used:
+                entry.used = True
+                return entry
+        return None
+
+    def add_uplink(self, sat_name: str, distance: int) -> Uplink | None:
+        pool_entry = self._get_pool_entry()
+        if pool_entry is None:
+            return None
+        uplink = Uplink(sat_name, distance, pool_entry)
+        self.uplinks.append(uplink)
+        return uplink
+
+    def remove_uplink(self, sat_name: str):
+        for entry in self.uplinks:
+            if entry.sat_name == sat_name:
+                entry.ip_pool_entry.used = False
+                self.uplinks.remove(entry)
+                return
 
 class FrrRouterNode(mininet.node.Node):
     """
@@ -217,9 +264,11 @@ class NetxTopo(mininet.topo.Topo):
         for name in torus_topo.ground_stations(self.graph):
             node = self.graph.nodes[name]
             ip = node.get("ip")
+            if ip is not None:
+                ip = format(ip)
             self.addHost(name, 
                          ip=ip)
-            station = GroundStation(name)
+            station = GroundStation(name, node["uplinks"])
             self.ground_stations[name] = station
 
         # Create links between routers
@@ -361,14 +410,29 @@ class NetxTopo(mininet.topo.Topo):
         station = self.ground_stations[station_name]
         if len(station.uplinks) == 0:
             # For testing, just create links once
-            links = []
-            for link in uplinks:
-                links.append(Uplink(link.sat_node, link.distance))
-                self._create_link(station_name, link.sat_node, net)
-            station.set_uplinks(links)
 
-    def _create_link(self, node1: str, node2: str, net: mininet.net.Mininet):
-        net.addLink(node1, node2)
+            # Determine which links should be removed
+            next_list = [uplink.sat_node for uplink in uplinks]
+            for sat_name in station.sat_links():
+                if sat_name not in next_list:
+                    station.remove_uplink(sat_name)
+
+            # Add any new links
+            for link in uplinks:
+                if not station.has_uplink(link.sat_node):
+                    uplink = station.add_uplink(link.sat_node, link.distance)
+                    if uplink is not None:
+                        self._create_link(station_name, 
+                                          link.sat_node, 
+                                          uplink.ip_pool_entry.ip1,
+                                          uplink.ip_pool_entry.ip2,
+                                          mnet)
+
+    def _create_link(self, node1: str, node2: str, ip1: str, ip2: str, net: mininet.net.Mininet):
+        net.addLink(node1, node2, 
+                    params1={"ip": ip1},
+                    params2={"ip": ip2},
+ )
 
 class NetxTopoStub(NetxTopo):
     def __init__(self, graph: networkx.Graph):
@@ -379,8 +443,8 @@ class NetxTopoStub(NetxTopo):
         total_count: int = random.randrange(20) + good_count
         return good_count, total_count
 
-    def _create_link(self, node1: str, node2: str, net: mininet.net.Mininet):
-        print(f"create link {node1} - {node2}" )
+    def _create_link(self, node1: str, node2: str, ip1: str, ip2: str, net: mininet.net.Mininet):
+        print(f"create link {node1}{ip1} - {node2}:{ip2}" )
         pass
 
     def _config_link_state(

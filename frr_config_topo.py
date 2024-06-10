@@ -56,11 +56,27 @@ def annotate_graph(graph: networkx.Graph):
         graph.adj[n1][n2]["intf"][n1] = intf1
         graph.adj[n2][n1]["intf"][n2] = intf2
 
+    # Generate config information for the satellites
     for name in torus_topo.satellites(graph):
         node = graph.nodes[name]
         node["ospf"] = create_ospf_config(graph, name)
         node["vtysh"] = create_vtysh_config(name)
         node["daemons"] = create_daemons_config()
+
+    # Generate ip link pool information for the ground stations
+    for name in torus_topo.ground_stations(graph):
+        node = graph.nodes[name]
+        uplinks = []
+        for i in range(4):
+            ip = 0x0A0F0000 + count * 4
+            count += 1
+            nw_link = ipaddress.IPv4Network((ip, 30))
+            ips = list(nw_link.hosts())
+            uplink = {"nw": nw_link,
+                      "ip1": ipaddress.IPv4Interface((ips[0].packed, 30)),
+                      "ip2": ipaddress.IPv4Interface((ips[1].packed, 30))}
+            uplinks.append(uplink)
+        node["uplinks"] = uplinks
 
 
 OSPF_TEMPLATE = """
