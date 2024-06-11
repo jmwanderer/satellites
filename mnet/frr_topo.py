@@ -426,13 +426,17 @@ class NetxTopo(mininet.topo.Topo):
                                           link.sat_node, 
                                           uplink.ip_pool_entry.ip1,
                                           uplink.ip_pool_entry.ip2,
-                                          mnet)
+                                          net)
 
     def _create_link(self, node1: str, node2: str, ip1: str, ip2: str, net: mininet.net.Mininet):
+        print(f"Add link {node1}:{ip1} - {node2}:{ip2}")
         net.addLink(node1, node2, 
                     params1={"ip": ip1},
-                    params2={"ip": ip2},
- )
+                    params2={"ip": ip2})
+        station = net.getNodeByName(node1)
+        route = "via %s" % ip2
+        print(f"set default route for {node1} to {route}")
+        station.setDefaultRoute(route)
 
 class NetxTopoStub(NetxTopo):
     def __init__(self, graph: networkx.Graph):

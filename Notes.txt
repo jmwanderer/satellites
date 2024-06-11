@@ -1,0 +1,29 @@
+
+Notes
+-----
+
+Working with network name spaces:
+
+- list information about network name spaces.
+
+sudo lsns --type=net
+This will include process ids
+
+- Enter a processes name space:
+
+sudo nsenter -t 1530 -n ifconfig
+
+In this case, we run ifconfig in the name space of process 1530
+
+
+TODO
+-----
+
+TODO Items for Network Simulation
+
+1. We have pydantic classes for use in fast api. Should we make these available to the client side also?
+2. Add tests for fast api interfaces
+3. Add tests for netsim functions
+4. How to stop and start the mnet simulation and the physical simulation?
+5. How to ensure that geosimsat runs the same data as the mininet driver?
+   For right now, just use the same ring and node count when starting
