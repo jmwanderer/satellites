@@ -6,6 +6,7 @@ import tempfile
 import datetime
 import shutil
 import random
+import typing
 from dataclasses import dataclass, field
 
 import networkx
@@ -20,12 +21,14 @@ import frr_config_topo
 import simapi
 import mnet.pmonitor
 
+
 @dataclass
 class IPPoolEntry:
-    network: str
-    ip1: str
-    ip2: str
+    network: ipaddress.IPv4Network
+    ip1: ipaddress.IPv4Interface
+    ip2: ipaddress.IPv4Interface
     used: bool = False
+
 
 @dataclass
 class Uplink:
@@ -34,22 +37,20 @@ class Uplink:
     ip_pool_entry: IPPoolEntry
 
 
-class GroundStation():
+class GroundStation:
     """
     State for a Ground Station
-    
-    Tracks established uplinks to satellites. 
-    Not a mininet node. 
+
+    Tracks established uplinks to satellites.
+    Not a mininet node.
     """
 
-    def __init__(self, name: str, uplinks: list[dict[str, str]]) -> None:
+    def __init__(self, name: str, uplinks: list[dict[str,typing.Any]]) -> None:
         self.name = name
         self.uplinks: list[Uplink] = []
         self.ip_pool: list[IPPoolEntry] = []
         for link in uplinks:
-            entry = IPPoolEntry(network=format(link["nw"]),
-                                ip1=format(link["ip1"]),
-                                ip2=format(link["ip2"]))
+            entry = IPPoolEntry(network=link["nw"], ip1=link["ip1"], ip2=link["ip2"])
             self.ip_pool.append(entry)
             print(f"added pool entry {entry.network}")
 
@@ -63,7 +64,7 @@ class GroundStation():
         """
         Return a list of satellite names to which we have uplinks
         """
-        return [uplink.name for uplink in self.uplinks]
+        return [uplink.sat_name for uplink in self.uplinks]
 
     def _get_pool_entry(self) -> IPPoolEntry | None:
         for entry in self.ip_pool:
@@ -86,6 +87,7 @@ class GroundStation():
                 entry.ip_pool_entry.used = False
                 self.uplinks.remove(entry)
                 return
+
 
 class FrrRouterNode(mininet.node.Node):
     """
@@ -266,8 +268,7 @@ class NetxTopo(mininet.topo.Topo):
             ip = node.get("ip")
             if ip is not None:
                 ip = format(ip)
-            self.addHost(name, 
-                         ip=ip)
+            self.addHost(name, ip=ip)
             station = GroundStation(name, node["uplinks"])
             self.ground_stations[name] = station
 
@@ -323,19 +324,19 @@ class NetxTopo(mininet.topo.Topo):
     def get_ring_list(self) -> list[list[str]]:
         return self.graph.graph["ring_list"]
 
-    def get_router_list(self) -> list[tuple[str]]:
+    def get_router_list(self) -> list[tuple[str,str]]:
         result = []
         for name in torus_topo.satellites(self.graph):
             node = self.graph.nodes[name]
-            ip = node.get("ip")
-            if ip is not None:
-                ip = format(ip)
+            ip = ""
+            if node.get("ip") is not None:
+                ip = format(node.get("ip"))
             else:
                 ip = ""
             result.append((name, ip))
         return result
 
-    def get_link_list(self) -> list[tuple[str]]:
+    def get_link_list(self) -> list[tuple[str,str,str]]:
         result = []
         for edge in self.graph.edges:
             node1 = edge[0]
@@ -370,7 +371,7 @@ class NetxTopo(mininet.topo.Topo):
         return result
 
     def get_ground_stations(self) -> list[GroundStation]:
-        return [ x for x in self.ground_stations.values()]
+        return [x for x in self.ground_stations.values()]
 
     def set_link_state(
         self, node1: str, node2: str, state_up: bool, net: mininet.net.Mininet
@@ -391,7 +392,7 @@ class NetxTopo(mininet.topo.Topo):
         state = "up" if state_up else "down"
         net.configLinkStatus(node1, node2, state)
 
-    def get_link_state(self, node1: str, node2: str, net: mininet.net.Mininet) -> bool:
+    def get_link_state(self, node1: str, node2: str, net: mininet.net.Mininet) -> tuple[bool, bool]:
         n1 = net.nameToNode.get(node1)
         n2 = net.nameToNode.get(node2)
         links = net.linksBetween(n1, n2)
@@ -401,10 +402,9 @@ class NetxTopo(mininet.topo.Topo):
 
         return False, False
 
-    def set_station_uplinks(self, 
-                            station_name: str, 
-                            uplinks: list[simapi.UpLink],
-                            net: mininet.net.Mininet) -> bool:
+    def set_station_uplinks(
+        self, station_name: str, uplinks: list[simapi.UpLink], net: mininet.net.Mininet
+    ) -> bool:
         if not station_name in self.ground_stations:
             return False
         station = self.ground_stations[station_name]
@@ -422,21 +422,32 @@ class NetxTopo(mininet.topo.Topo):
                 if not station.has_uplink(link.sat_node):
                     uplink = station.add_uplink(link.sat_node, link.distance)
                     if uplink is not None:
-                        self._create_link(station_name, 
-                                          link.sat_node, 
-                                          uplink.ip_pool_entry.ip1,
-                                          uplink.ip_pool_entry.ip2,
-                                          net)
+                        self._create_link(
+                            station_name,
+                            link.sat_node,
+                            uplink.ip_pool_entry.ip1,
+                            uplink.ip_pool_entry.ip2,
+                            net,
+                        )
+        return True
 
-    def _create_link(self, node1: str, node2: str, ip1: str, ip2: str, net: mininet.net.Mininet):
-        print(f"Add link {node1}:{ip1} - {node2}:{ip2}")
-        net.addLink(node1, node2, 
-                    params1={"ip": ip1},
-                    params2={"ip": ip2})
+    def _create_link(
+        self,
+        node1: str,
+        node2: str,
+        ip1: ipaddress.IPv4Interface,
+        ip2: ipaddress.IPv4Interface,
+        net: mininet.net.Mininet,
+    ):
+        print(f"Add link {node1}:{format(ip1)} - {node2}:{format(ip2)}")
+        net.addLink(
+            node1, node2, params1={"ip": format(ip1)}, params2={"ip": format(ip2)}
+        )
         station = net.getNodeByName(node1)
-        route = "via %s" % ip2
+        route = "via %s" % format(ip2.ip)
         print(f"set default route for {node1} to {route}")
         station.setDefaultRoute(route)
+
 
 class NetxTopoStub(NetxTopo):
     def __init__(self, graph: networkx.Graph):
@@ -447,8 +458,10 @@ class NetxTopoStub(NetxTopo):
         total_count: int = random.randrange(20) + good_count
         return good_count, total_count
 
-    def _create_link(self, node1: str, node2: str, ip1: str, ip2: str, net: mininet.net.Mininet):
-        print(f"create link {node1}{ip1} - {node2}:{ip2}" )
+    def _create_link(
+        self, node1: str, node2: str, ip1: ipaddress.IPv4Interface, ip2: ipaddress.IPv4Interface, net: mininet.net.Mininet
+    ):
+        print(f"create link {node1}{format(ip1)} - {node2}:{format(ip2)}")
         pass
 
     def _config_link_state(
@@ -456,7 +469,7 @@ class NetxTopoStub(NetxTopo):
     ):
         pass
 
-    def get_link_state(self, node1: str, node2: str, net: mininet.net.Mininet) -> bool:
+    def get_link_state(self, node1: str, node2: str, net: mininet.net.Mininet) -> tuple[bool,bool]:
         return True, True
 
     def get_node_status_list(self, name: str, net: mininet.net.Mininet):
