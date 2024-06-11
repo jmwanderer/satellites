@@ -6,6 +6,7 @@ import tempfile
 import datetime
 import shutil
 import random
+import socket
 import typing
 from dataclasses import dataclass, field
 
@@ -100,6 +101,7 @@ class FrrRouterNode(mininet.node.Node):
     """
 
     CFG_DIR = "/etc/frr/{node}"
+    VTY_DIR = "/var/frr/{node}/{daemon}.vty"
     LOG_DIR = "/var/log/frr/{node}"
 
     def __init__(self, name, **params):
@@ -161,6 +163,37 @@ class FrrRouterNode(mininet.node.Node):
                 self.loopIntf = mininet.link.Intf(name="loop", node=self)
 
         super().config(**params)
+
+    def frr_config_command(self, command):
+        print(f"sending command {command} to {self.name}")
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        path = FrrRouterNode.VTY_DIR.format(node=self.name, daemon="ospfd")
+        try:
+            sock.connect(path)
+            msg = b'enable\x00'
+            self._send_frr_cmd(sock, msg)
+            msg = b'conf term file-lock\x00'
+            self._send_frr_cmd(sock, msg)
+            msg = b'router ospf\x00'
+            self._send_frr_cmd(sock, msg)
+            msg = (command + '\x00').encode("ascii")
+            self._send_frr_cmd(sock, msg)
+            msg = b'end\x00'
+            self._send_frr_cmd(sock, msg)
+            msg = b'disable\x00'
+            self._send_frr_cmd(sock, msg)
+        except TimeoutError:
+            print("timout connecting to FRR")
+        sock.close()
+
+    def _send_frr_cmd(self, sock, msg: bytes) -> bool:
+        sock.sendall(msg)
+        data = sock.recv(10000)
+        size = len(data)
+        if size > 0 and data[size-1] == 0:
+            return True
+        return False
+
 
     def setIP(self, ip):
         mininet.node.Node.setIP(self, ip)
@@ -425,6 +458,7 @@ class NetxTopo(mininet.topo.Topo):
                         self._create_link(
                             station_name,
                             link.sat_node,
+                            uplink.ip_pool_entry.network,
                             uplink.ip_pool_entry.ip1,
                             uplink.ip_pool_entry.ip2,
                             net,
@@ -435,6 +469,7 @@ class NetxTopo(mininet.topo.Topo):
         self,
         node1: str,
         node2: str,
+        ip_nw: ipaddress.IPv4Network,
         ip1: ipaddress.IPv4Interface,
         ip2: ipaddress.IPv4Interface,
         net: mininet.net.Mininet,
@@ -447,7 +482,8 @@ class NetxTopo(mininet.topo.Topo):
         route = "via %s" % format(ip2.ip)
         print(f"set default route for {node1} to {route}")
         station.setDefaultRoute(route)
-
+        frr_node = net.getNodeByName(node2)
+        frr_node.frr_config_command(f"network {format(ip_nw)} area 0.0.0.0")
 
 class NetxTopoStub(NetxTopo):
     def __init__(self, graph: networkx.Graph):
@@ -459,7 +495,7 @@ class NetxTopoStub(NetxTopo):
         return good_count, total_count
 
     def _create_link(
-        self, node1: str, node2: str, ip1: ipaddress.IPv4Interface, ip2: ipaddress.IPv4Interface, net: mininet.net.Mininet
+            self, node1: str, node2: str, ip_nw: ipaddress.IPv4Network, ip1: ipaddress.IPv4Interface, ip2: ipaddress.IPv4Interface, net: mininet.net.Mininet
     ):
         print(f"create link {node1}{format(ip1)} - {node2}:{format(ip2)}")
         pass
