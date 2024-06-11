@@ -36,6 +36,7 @@ class Uplink:
     sat_name: str
     distance: int
     ip_pool_entry: IPPoolEntry
+    default: bool = False
 
 
 class GroundStation:
@@ -82,12 +83,13 @@ class GroundStation:
         self.uplinks.append(uplink)
         return uplink
 
-    def remove_uplink(self, sat_name: str):
+    def remove_uplink(self, sat_name: str) -> Uplink|None:
         for entry in self.uplinks:
             if entry.sat_name == sat_name:
                 entry.ip_pool_entry.used = False
                 self.uplinks.remove(entry)
-                return
+                return entry
+        return None
 
 
 class FrrRouterNode(mininet.node.Node):
@@ -164,27 +166,30 @@ class FrrRouterNode(mininet.node.Node):
 
         super().config(**params)
 
-    def frr_config_command(self, command):
+    def frr_config_command(self, command: str) -> bool:
         print(f"sending command {command} to {self.name}")
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         path = FrrRouterNode.VTY_DIR.format(node=self.name, daemon="ospfd")
+        result = True
         try:
             sock.connect(path)
             msg = b'enable\x00'
-            self._send_frr_cmd(sock, msg)
+            result = result and self._send_frr_cmd(sock, msg)
             msg = b'conf term file-lock\x00'
-            self._send_frr_cmd(sock, msg)
+            result = result and self._send_frr_cmd(sock, msg)
             msg = b'router ospf\x00'
-            self._send_frr_cmd(sock, msg)
+            result = result and self._send_frr_cmd(sock, msg)
             msg = (command + '\x00').encode("ascii")
-            self._send_frr_cmd(sock, msg)
+            result = result and self._send_frr_cmd(sock, msg)
             msg = b'end\x00'
             self._send_frr_cmd(sock, msg)
             msg = b'disable\x00'
             self._send_frr_cmd(sock, msg)
         except TimeoutError:
             print("timout connecting to FRR")
+            result = False
         sock.close()
+        return result
 
     def _send_frr_cmd(self, sock, msg: bytes) -> bool:
         sock.sendall(msg)
@@ -441,28 +446,27 @@ class NetxTopo(mininet.topo.Topo):
         if not station_name in self.ground_stations:
             return False
         station = self.ground_stations[station_name]
-        if len(station.uplinks) == 0:
-            # For testing, just create links once
+        # Determine which links should be removed
+        next_list = [uplink.sat_node for uplink in uplinks]
+        for sat_name in station.sat_links():
+            if sat_name not in next_list:
+                uplink = station.remove_uplink(sat_name)
+                self._remove_link(station_name, sat_name, uplink.ip_pool_entry.network)
 
-            # Determine which links should be removed
-            next_list = [uplink.sat_node for uplink in uplinks]
-            for sat_name in station.sat_links():
-                if sat_name not in next_list:
-                    station.remove_uplink(sat_name)
-
-            # Add any new links
-            for link in uplinks:
-                if not station.has_uplink(link.sat_node):
-                    uplink = station.add_uplink(link.sat_node, link.distance)
-                    if uplink is not None:
-                        self._create_link(
-                            station_name,
-                            link.sat_node,
-                            uplink.ip_pool_entry.network,
-                            uplink.ip_pool_entry.ip1,
-                            uplink.ip_pool_entry.ip2,
-                            net,
+        # Add any new links
+        for link in uplinks:
+            if not station.has_uplink(link.sat_node):
+                uplink = station.add_uplink(link.sat_node, link.distance)
+                if uplink is not None:
+                    self._create_link(
+                        station_name,
+                        link.sat_node,
+                        uplink.ip_pool_entry.network,
+                        uplink.ip_pool_entry.ip1,
+                        uplink.ip_pool_entry.ip2,
+                        net,
                         )
+        self._update_default_route(station, net)
         return True
 
     def _create_link(
@@ -475,16 +479,41 @@ class NetxTopo(mininet.topo.Topo):
         net: mininet.net.Mininet,
     ):
         print(f"Add link {node1}:{format(ip1)} - {node2}:{format(ip2)}")
+        # Create the link
         net.addLink(
             node1, node2, params1={"ip": format(ip1)}, params2={"ip": format(ip2)}
         )
-        station = net.getNodeByName(node1)
-        route = "via %s" % format(ip2.ip)
-        print(f"set default route for {node1} to {route}")
-        station.setDefaultRoute(route)
+        # Advertise network in OSPF
         frr_node = net.getNodeByName(node2)
         frr_node.frr_config_command(f"network {format(ip_nw)} area 0.0.0.0")
 
+    def _remove_link(self, node1: str, node2: str, ip_nw: ipaddress.IPv4Network, net: mininet.net.Mininet) -> None:
+        print(f"Remove link {node1} - {node2}")
+        frr_node = net.getNodeByName(node2)
+        frr_node.frr_config_command(f"no network {format(ip_nw)} area 0.0.0.0")
+        net.delLinkBetween(node1, node2)
+
+    def _update_default_route(self, station: GroundStation, net: mininet.net.Mininet) -> None:
+        closest_uplink = None
+        # Find closest uplink
+        for uplink in station.uplinks:
+            if closest_uplink is None:
+                closest_uplink = uplink
+            elif closest_uplink.distance < uplink.distance:
+                closest_uplink = uplink
+        
+        # If the closest has changed, update the default route
+        if closest_uplink is not None and not closest_uplink.default:
+            # Clear current default
+            for uplink in station.uplinks:
+                uplink.default = False
+            # Mark new default and set
+            closest_uplink.default = True 
+            station_node = net.getNodeByName(station.name)
+            route = "via %s" % format(closest_uplink.ip_pool_entry.ip2)
+            print(f"set default route for {station.name} to {route}")
+            station_node.setDefaultRoute(route)
+ 
 class NetxTopoStub(NetxTopo):
     def __init__(self, graph: networkx.Graph):
         super(NetxTopoStub, self).__init__(graph)
