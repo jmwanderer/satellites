@@ -451,7 +451,7 @@ class NetxTopo(mininet.topo.Topo):
         for sat_name in station.sat_links():
             if sat_name not in next_list:
                 uplink = station.remove_uplink(sat_name)
-                self._remove_link(station_name, sat_name, uplink.ip_pool_entry.network)
+                self._remove_link(station_name, sat_name, uplink.ip_pool_entry.network, net)
 
         # Add any new links
         for link in uplinks:
@@ -510,7 +510,7 @@ class NetxTopo(mininet.topo.Topo):
             # Mark new default and set
             closest_uplink.default = True 
             station_node = net.getNodeByName(station.name)
-            route = "via %s" % format(closest_uplink.ip_pool_entry.ip2)
+            route = "via %s" % format(closest_uplink.ip_pool_entry.ip2.ip)
             print(f"set default route for {station.name} to {route}")
             station_node.setDefaultRoute(route)
  
