@@ -446,16 +446,19 @@ class NetxTopo(mininet.topo.Topo):
         if not station_name in self.ground_stations:
             return False
         station = self.ground_stations[station_name]
+
         # Determine which links should be removed
         next_list = [uplink.sat_node for uplink in uplinks]
         for sat_name in station.sat_links():
             if sat_name not in next_list:
+                print(f"Remove uplink {station.name} - {sat_name}")
                 uplink = station.remove_uplink(sat_name)
                 self._remove_link(station_name, sat_name, uplink.ip_pool_entry.network, net)
 
         # Add any new links
         for link in uplinks:
             if not station.has_uplink(link.sat_node):
+                print(f"Add uplink {station.name}- {link.sat_node}")
                 uplink = station.add_uplink(link.sat_node, link.distance)
                 if uplink is not None:
                     self._create_link(
@@ -478,7 +481,6 @@ class NetxTopo(mininet.topo.Topo):
         ip2: ipaddress.IPv4Interface,
         net: mininet.net.Mininet,
     ):
-        print(f"Add link {node1}:{format(ip1)} - {node2}:{format(ip2)}")
         # Create the link
         net.addLink(
             node1, node2, params1={"ip": format(ip1)}, params2={"ip": format(ip2)}
@@ -487,11 +489,11 @@ class NetxTopo(mininet.topo.Topo):
         frr_node = net.getNodeByName(node2)
         frr_node.frr_config_command(f"network {format(ip_nw)} area 0.0.0.0")
 
-    def _remove_link(self, node1: str, node2: str, ip_nw: ipaddress.IPv4Network, net: mininet.net.Mininet) -> None:
-        print(f"Remove link {node1} - {node2}")
-        frr_node = net.getNodeByName(node2)
-        frr_node.frr_config_command(f"no network {format(ip_nw)} area 0.0.0.0")
-        net.delLinkBetween(node1, node2)
+    def _remove_link(self, station_name: str, sat_name: str, ip_nw: ipaddress.IPv4Network, net: mininet.net.Mininet) -> None:
+        station_node = net.getNodeByName(station_name)
+        sat_node = net.getNodeByName(sat_name)
+        sat_node.frr_config_command(f"no network {format(ip_nw)} area 0.0.0.0")
+        net.delLinkBetween(station_node, sat_node)
 
     def _update_default_route(self, station: GroundStation, net: mininet.net.Mininet) -> None:
         closest_uplink = None
@@ -527,6 +529,13 @@ class NetxTopoStub(NetxTopo):
             self, node1: str, node2: str, ip_nw: ipaddress.IPv4Network, ip1: ipaddress.IPv4Interface, ip2: ipaddress.IPv4Interface, net: mininet.net.Mininet
     ):
         print(f"create link {node1}{format(ip1)} - {node2}:{format(ip2)}")
+        pass
+
+    def _remove_link(self, station_name: str, sat_name: str, ip_nw: ipaddress.IPv4Network, net: mininet.net.Mininet) -> None:
+        print(f"remove link {station_name} - {sat_name}")
+        pass
+
+    def _update_default_route(self, station: GroundStation, net: mininet.net.Mininet) -> None:
         pass
 
     def _config_link_state(
