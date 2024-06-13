@@ -24,10 +24,12 @@ def run(num_rings, num_routers):
     frr_config_topo.dump_graph(graph)
 
     # Use the networkx graph to build a mininet topology
-    topo = mnet.frr_topo.NetxTopoStub(graph)
+    topo = mnet.frr_topo.NetxTopo(graph)
+    topo.start_routers(None)
 
     print("Launching web API. Use /shutdown to halt")
     driver = mnet.driver.run(topo, None)
+    topo.stop_routers(None)
 
 
 def usage():

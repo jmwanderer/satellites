@@ -232,14 +232,21 @@ class FrrRouter(MNetNodeWrap):
 
     def startMonitor(self, db_master_file, db_master):
         self.sendCmd(
-            f"python3 -m mnet.pmonitor monitor '{db_master_file}' '{self.working_db}' {self.defaultIntf().ip} >> /dev/null 2>&1  &"
+            f"python3 -m mnet.pmonitor monitor '{db_master_file}' '{self.working_db}' {self.defaultIP()} >> /dev/null 2>&1  &"
         )
-        mnet.pmonitor.set_running(db_master, self.defaultIntf().ip, True)
+        mnet.pmonitor.set_running(db_master, self.defaultIP(), True)
 
     def stopMonitor(self, db_master):
-        mnet.pmonitor.set_can_run(db_master, self.defaultIntf().ip, False)
+        mnet.pmonitor.set_can_run(db_master, self.defaultIP(), False)
         os.unlink(self.working_db)
 
+    def defaultIP(self) -> str:
+        """
+        Return the default interface
+        """
+        if self.node is not None:
+            return self.node.defaultIntf().ip
+        return "192.1.1.1"
 
     def frr_config_commands(self, commands: list[str]) -> bool:
         if self.node is None:
@@ -307,13 +314,17 @@ class NetxTopo(mininet.topo.Topo):
         data = []
         self.net = net
         for name in self.routers:
-            node = net.getNodeByName(name)
-            data.append((node.name, router.defaultIntf().ip))
+            if net is not None:
+                node = net.getNodeByName(name)
+                data.append((node.name, node.defaultIntf().ip))
         mnet.pmonitor.init_targets(self.db_file, data)
 
         # Start routing
         for frr_router in self.routers.values():
-            node = net.getNodeByName(frr_router.name)
+            if net is not None:
+                node = net.getNodeByName(frr_router.name)
+            else:
+                node = None
             frr_router.start(node)
 
         # Wait for start to complete.
@@ -398,12 +409,16 @@ class NetxTopo(mininet.topo.Topo):
     def get_monitor_stats(self):
         good_count: int = 0
         total_count: int = 0
-        for frr_router in self.routers.values():
-            db_working = mnet.pmonitor.open_db(frr_router.working_db)
-            good, total = mnet.pmonitor.get_status_count(db_working)
-            db_working.close()
-            good_count += good
-            total_count += total
+        if self.net is None:
+            good_count: int = random.randrange(20)
+            total_count: int = random.randrange(20) + good_count
+        else:
+            for frr_router in self.routers.values():
+                db_working = mnet.pmonitor.open_db(frr_router.working_db)
+                good, total = mnet.pmonitor.get_status_count(db_working)
+                db_working.close()
+                good_count += good
+                total_count += total
         return good_count, total_count
 
     def sample_stats(self):
@@ -415,7 +430,9 @@ class NetxTopo(mininet.topo.Topo):
     def get_node_status_list(self, name: str):
         frr_router = self.routers[name]
         db_working = mnet.pmonitor.open_db(frr_router.working_db)
-        result = mnet.pmonitor.get_status_list(db_working)
+        result = []
+        if self.net is not None:
+            result = mnet.pmonitor.get_status_list(db_working)
         return result
 
     def get_stat_samples(self):
@@ -496,10 +513,10 @@ class NetxTopo(mininet.topo.Topo):
             self.net.configLinkStatus(node1, node2, state)
 
     def get_link_state(self, node1: str, node2: str) -> tuple[bool, bool]:
-        n1 = net.nameToNode.get(node1)
-        n2 = net.nameToNode.get(node2)
         if self.net is not None:
-            links = net.linksBetween(n1, n2)
+            n1 = self.net.nameToNode.get(node1)
+            n2 = self.net.nameToNode.get(node2)
+            links = self.net.linksBetween(n1, n2)
         else:
             links = []
         if len(links) > 0:
@@ -594,40 +611,6 @@ class NetxTopo(mininet.topo.Topo):
                 print(f"set default route for {station.name} to {route}")
                 station_node.setDefaultRoute(route)
  
-class NetxTopoStub(NetxTopo):
-    def __init__(self, graph: networkx.Graph):
-        super(NetxTopoStub, self).__init__(graph)
-
-    def get_monitor_stats(self):
-        good_count: int = random.randrange(20)
-        total_count: int = random.randrange(20) + good_count
-        return good_count, total_count
-
-    def _create_link(
-            self, node1: str, node2: str, ip_nw: ipaddress.IPv4Network, ip1: ipaddress.IPv4Interface, ip2: ipaddress.IPv4Interface,
-    ):
-        print(f"create link {node1}{format(ip1)} - {node2}:{format(ip2)}")
-        pass
-
-    def _remove_link(self, station_name: str, sat_name: str, ip_nw: ipaddress.IPv4Network) -> None:
-        print(f"remove link {station_name} - {sat_name}")
-        pass
-
-    def _update_default_route(self, station: GroundStation) -> None:
-        pass
-
-    def _config_link_state(
-        self, node1: str, node2: str, state_up: bool
-    ):
-        pass
-
-    def get_link_state(self, node1: str, node2: str) -> tuple[bool,bool]:
-        return True, True
-
-    def get_node_status_list(self, name: str):
-        return []
-
-
 if __name__ == "__main__":
     graph = torus_topo.create_network(8, 8)
     frr_config_topo.annotate_graph(graph)
