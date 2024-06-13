@@ -21,6 +21,14 @@ TODO
 
 TODO Items for Network Simulation
 
+- Add loopback for Groundstation
+- Add static IP address route for groundstation loopback on uplink
+- Add monitoring for ground stations - new column in table
+- Make a config file for
+  # rings
+  # nodes per rind
+  # distance for uplink connect
+
 1. We have pydantic classes for use in fast api. Should we make these available to the client side also?
 2. Add tests for fast api interfaces
 3. Add tests for netsim functions

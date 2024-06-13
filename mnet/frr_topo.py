@@ -166,8 +166,7 @@ class FrrRouterNode(mininet.node.Node):
 
         super().config(**params)
 
-    def frr_config_command(self, command: str) -> bool:
-        print(f"sending command {command} to {self.name}")
+    def frr_config_commands(self, commands: list[str]) -> bool:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         path = FrrRouterNode.VTY_DIR.format(node=self.name, daemon="ospfd")
         result = True
@@ -177,10 +176,10 @@ class FrrRouterNode(mininet.node.Node):
             result = result and self._send_frr_cmd(sock, msg)
             msg = b'conf term file-lock\x00'
             result = result and self._send_frr_cmd(sock, msg)
-            msg = b'router ospf\x00'
-            result = result and self._send_frr_cmd(sock, msg)
-            msg = (command + '\x00').encode("ascii")
-            result = result and self._send_frr_cmd(sock, msg)
+            for command in commands:
+                print(f"sending command {command} to {self.name}")
+                msg = (command + '\x00').encode("ascii")
+                result = result and self._send_frr_cmd(sock, msg)
             msg = b'end\x00'
             self._send_frr_cmd(sock, msg)
             msg = b'disable\x00'
@@ -487,12 +486,22 @@ class NetxTopo(mininet.topo.Topo):
         )
         # Advertise network in OSPF
         frr_node = net.getNodeByName(node2)
-        frr_node.frr_config_command(f"network {format(ip_nw)} area 0.0.0.0")
+        # TODO: add
+        # station = self.ground_stations[station_name]
+        # ip route {ground station ip /32} {ground station pool ip}",
+        # ospf redistribute static in base config
+        # Note: could also use redistribute connected - maybe better
+        #frr_node.frr_config_commands(
+        #        [ "router ospf",
+        #         f"network {format(ip_nw)} area 0.0.0.0"])
 
     def _remove_link(self, station_name: str, sat_name: str, ip_nw: ipaddress.IPv4Network, net: mininet.net.Mininet) -> None:
         station_node = net.getNodeByName(station_name)
         sat_node = net.getNodeByName(sat_name)
-        sat_node.frr_config_command(f"no network {format(ip_nw)} area 0.0.0.0")
+        # TODO: add no ip route for ground station
+        #sat_node.frr_config_command(
+        #        [ "router ospf", 
+        #         f"no network {format(ip_nw)} area 0.0.0.0"])
         net.delLinkBetween(station_node, sat_node)
 
     def _update_default_route(self, station: GroundStation, net: mininet.net.Mininet) -> None:
