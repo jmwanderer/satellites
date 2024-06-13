@@ -67,7 +67,7 @@ def background_thread():
     while True:
         time.sleep(20)
         with get_context() as context:
-            context.netxTopo.sample_stats(context.mn_net)
+            context.netxTopo.sample_stats()
 
 
 app = FastAPI()
@@ -98,7 +98,7 @@ def root(request: Request):
         current_time = datetime.datetime.now().isoformat(sep=" ", timespec="seconds")
         run_time = str(context.run_time())
         ring_nodes = context.netxTopo.get_topo_graph().graph["ring_nodes"]
-        good, total = context.netxTopo.get_monitor_stats(context.mn_net)
+        good, total = context.netxTopo.get_monitor_stats()
         routers = context.netxTopo.get_router_list()
         links = context.netxTopo.get_link_list()
         src_stats = context.netxTopo.get_stat_samples()
@@ -137,8 +137,8 @@ def intf_state(up: bool):
 @app.get("/view/router/{node}", response_class=HTMLResponse)
 def view_router(request: Request, node: str):
     with get_context() as context:
-        router = context.netxTopo.get_router(node, context.mn_net)
-        status_list = context.netxTopo.get_node_status_list(node, context.mn_net)
+        router = context.netxTopo.get_router(node)
+        status_list = context.netxTopo.get_node_status_list(node)
         ring_list = context.netxTopo.get_ring_list()
         for neighbor in router["neighbors"]:
             intf1_state = intf_state(router["neighbors"][neighbor]["up"][0])
@@ -156,7 +156,7 @@ def view_router(request: Request, node: str):
 def view_link(request: Request, node1: str, node2: str):
     with get_context() as context:
         link = context.netxTopo.get_link(node1, node2)
-        up1, up2 = context.netxTopo.get_link_state(node1, node2, context.mn_net)
+        up1, up2 = context.netxTopo.get_link_state(node1, node2)
 
     return templates.TemplateResponse(
         request=request,
@@ -176,7 +176,7 @@ def set_link(link: simapi.Link):
         state = "up" if link.up else "down"
         context.add_event(f"set link {link.node1_name} - {link.node2_name} {state}")
         err = context.netxTopo.set_link_state(
-            link.node1_name, link.node2_name, link.up, context.mn_net
+            link.node1_name, link.node2_name, link.up
         )
     if err is not None:
         return {"error": err}
@@ -189,15 +189,14 @@ def set_uplinks(uplinks: simapi.UpLinks):
         # TODO: add ground stations and uplinks to NxTopo
         # Add a call to set the uplinks which will diff and change the links
         context.netxTopo.set_station_uplinks(uplinks.ground_node, 
-                                             uplinks.uplinks,
-                                             context.mn_net)
+                                             uplinks.uplinks)
         return {"status": "OK"}
 
 
 @app.get("/stats/total")
 def stats_total():
     with get_context() as context:
-        good, total = context.netxTopo.get_monitor_stats(context.mn_net)
+        good, total = context.netxTopo.get_monitor_stats()
     return {"good_count": good, "toital_count": total}
 
 
