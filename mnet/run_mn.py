@@ -23,7 +23,7 @@ def signal_handler(sig, frame):
     print("Ctrl-C recieved, shutting down....")
     mnet.driver.invoke_shutdown()
 
-def run(num_rings, num_routers, use_cli):
+def run(num_rings, num_routers, use_cli, use_mnet):
     # Create a networkx graph annoted with FRR configs
     graph = torus_topo.create_network(num_rings, num_routers)
     frr_config_topo.annotate_graph(graph)
@@ -32,31 +32,41 @@ def run(num_rings, num_routers, use_cli):
     # Use the networkx graph to build a mininet topology
     topo = mnet.frr_topo.NetxTopo(graph)
 
-    # Run mininet
-    net = Mininet(topo=topo)
-    net.start()
+    net = None
+    if use_mnet:
+        # Run mininet
+        net = Mininet(topo=topo)
+        net.start()
+
     topo.start_routers(net)
-    if use_cli:
+    if use_cli and net is not None:
         CLI(net)
     else:
         print("Launching web API. Use /shutdown to halt")
         signal.signal(signal.SIGINT, signal_handler)
         driver = mnet.driver.run(topo, net)
-    topo.stop_routers(net)
-    net.stop()
+    topo.stop_routers()
+
+    if net is not None:
+        net.stop()
 
 
 def usage():
-    print("Usage: run_nm <rings> <routers-per-ring>")
+    print("Usage: run_nm [--cli] [--no-mnet] <rings> <routers-per-ring>")
     print("<rings> - number of rings in the topology, 1 - 20")
     print("<routers-per-ring> - number of routers in each ring, 1 - 20")
 
 
 if __name__ == "__main__":
     use_cli = False
+    use_mnet = False
     if "--cli" in sys.argv:
         use_cli = True
         sys.argv.remove("--cli")
+
+    if "--no-mnet" in sys.argv:
+        use_mnet = False
+        sys.argv.remove("--no-mnet")
 
     if len(sys.argv) != 1 and len(sys.argv) != 3:
         usage()
@@ -79,4 +89,4 @@ if __name__ == "__main__":
 
     setLogLevel("info")
     print(f"Running {num_rings} rings with {num_routers} per ring")
-    run(num_rings, num_routers, use_cli)
+    run(num_rings, num_routers, use_cli, use_mnet)
