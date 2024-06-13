@@ -296,6 +296,26 @@ class FrrRouter(MNetNodeWrap):
         os.chown(file_path, uid, gid)
 
 
+class StubMininet:
+    def __init__(self):
+        pass
+
+    def configLinkStatus(self, node1: str, node2: str, state: str):
+        pass
+
+    def linksBetween(self, node1, node2):
+        return []
+
+    def getNodeByName(self, name):
+        return None
+    
+    def addLink(self, node1: str, node2: str, params1: dict, params2: dict):
+        pass
+    
+    def delLinkBetween(self, node1, node2):
+        pass
+
+
 class NetxTopo(mininet.topo.Topo):
     def __init__(self, graph: networkx.Graph):
         self.graph = graph
@@ -305,6 +325,7 @@ class NetxTopo(mininet.topo.Topo):
         self.stat_samples = []
         fd, self.db_file = tempfile.mkstemp(suffix=".sqlite")
         self.net = None
+        self.stub_net = True
         open(fd, "r").close()
         print(f"Master db file {self.db_file}")
         super().__init__()
@@ -312,7 +333,13 @@ class NetxTopo(mininet.topo.Topo):
     def start_routers(self, net: mininet.net.Mininet):
         # Populate master db file
         data = []
-        self.net = net
+        if net is not None:
+            self.net = net
+            self.stub_net = False
+        else:
+            self.net = StubMininet()
+            self.stub_net = True
+
         for name in self.routers:
             if net is not None:
                 node = net.getNodeByName(name)
@@ -409,7 +436,7 @@ class NetxTopo(mininet.topo.Topo):
     def get_monitor_stats(self):
         good_count: int = 0
         total_count: int = 0
-        if self.net is None:
+        if self.stub_net:
             good_count: int = random.randrange(20)
             total_count: int = random.randrange(20) + good_count
         else:
@@ -431,7 +458,7 @@ class NetxTopo(mininet.topo.Topo):
         frr_router = self.routers[name]
         db_working = mnet.pmonitor.open_db(frr_router.working_db)
         result = []
-        if self.net is not None:
+        if not self.stub_net:
             result = mnet.pmonitor.get_status_list(db_working)
         return result
 
@@ -509,16 +536,12 @@ class NetxTopo(mininet.topo.Topo):
         self, node1: str, node2: str, state_up: bool 
     ):
         state = "up" if state_up else "down"
-        if self.net is not None:
-            self.net.configLinkStatus(node1, node2, state)
+        self.net.configLinkStatus(node1, node2, state)
 
     def get_link_state(self, node1: str, node2: str) -> tuple[bool, bool]:
-        if self.net is not None:
-            n1 = self.net.nameToNode.get(node1)
-            n2 = self.net.nameToNode.get(node2)
-            links = self.net.linksBetween(n1, n2)
-        else:
-            links = []
+        n1 = self.net.getNodeByName(node1)
+        n2 = self.net.getNodeByName(node2)
+        links = self.net.linksBetween(n1, n2)
         if len(links) > 0:
             link = links[0]
             return link.intf1.isUp(), link.intf2.isUp()
@@ -564,12 +587,11 @@ class NetxTopo(mininet.topo.Topo):
         ip2: ipaddress.IPv4Interface,
     ):
         # Create the link
-        if self.net is not None:
-            self.net.addLink(
-                node1, node2, params1={"ip": format(ip1)}, params2={"ip": format(ip2)}
-            )
+        self.net.addLink(
+            node1, node2, params1={"ip": format(ip1)}, params2={"ip": format(ip2)}
+        )
         # Advertise network in OSPF
-            frr_node = self.net.getNodeByName(node2)
+        frr_node = self.net.getNodeByName(node2)
         # TODO: add
         # station = self.ground_stations[station_name]
         # ip route {ground station ip /32} {ground station pool ip}",
@@ -580,14 +602,13 @@ class NetxTopo(mininet.topo.Topo):
         #         f"network {format(ip_nw)} area 0.0.0.0"])
 
     def _remove_link(self, station_name: str, sat_name: str, ip_nw: ipaddress.IPv4Network) -> None:
-        if self.net is not None:
-            station_node = self.net.getNodeByName(station_name)
-            sat_node = self.net.getNodeByName(sat_name)
-            # TODO: add no ip route for ground station
-            #sat_node.frr_config_command(
-            #        [ "router ospf", 
-            #         f"no network {format(ip_nw)} area 0.0.0.0"])
-            self.net.delLinkBetween(station_node, sat_node)
+        station_node = self.net.getNodeByName(station_name)
+        sat_node = self.net.getNodeByName(sat_name)
+        # TODO: add no ip route for ground station
+        #sat_node.frr_config_command(
+        #        [ "router ospf", 
+        #         f"no network {format(ip_nw)} area 0.0.0.0"])
+        self.net.delLinkBetween(station_node, sat_node)
 
     def _update_default_route(self, station: GroundStation) -> None:
         closest_uplink = None
@@ -605,10 +626,10 @@ class NetxTopo(mininet.topo.Topo):
                 uplink.default = False
             # Mark new default and set
             closest_uplink.default = True 
-            if self.net is not None:
-                station_node = net.getNodeByName(station.name)
-                route = "via %s" % format(closest_uplink.ip_pool_entry.ip2.ip)
-                print(f"set default route for {station.name} to {route}")
+            station_node = net.getNodeByName(station.name)
+            route = "via %s" % format(closest_uplink.ip_pool_entry.ip2.ip)
+            print(f"set default route for {station.name} to {route}")
+            if station_node is not None:
                 station_node.setDefaultRoute(route)
  
 if __name__ == "__main__":
