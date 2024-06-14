@@ -31,6 +31,7 @@ def run(num_rings, num_routers, use_cli, use_mnet):
 
     # Use the networkx graph to build a mininet topology
     topo = mnet.frr_topo.NetxTopo(graph)
+    print("generated topo")
 
     net = None
     if use_mnet:
@@ -38,14 +39,17 @@ def run(num_rings, num_routers, use_cli, use_mnet):
         net = Mininet(topo=topo)
         net.start()
 
-    topo.start_routers(net)
+    frrt = mnet.frr_topo.FrrSimRuntime(topo, net)
+    print("created runtime")
+
+    frrt.start_routers()
     if use_cli and net is not None:
         CLI(net)
     else:
         print("Launching web API. Use /shutdown to halt")
         signal.signal(signal.SIGINT, signal_handler)
-        driver = mnet.driver.run(topo, net)
-    topo.stop_routers()
+        mnet.driver.run(frrt)
+    frrt.stop_routers()
 
     if net is not None:
         net.stop()

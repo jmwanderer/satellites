@@ -319,39 +319,99 @@ class StubMininet:
 class NetxTopo(mininet.topo.Topo):
     def __init__(self, graph: networkx.Graph):
         self.graph = graph
+        self.routers: list[FrrRouter] = []
+        self.ground_stations: list[GroundStation] = []
+        super().__init__()
+
+    def build(self, *args, **params):
+        # Create routers
+        for name in torus_topo.satellites(self.graph):
+            node = self.graph.nodes[name]
+            ip = node.get("ip")
+            if ip is not None:
+                ip = format(ip)
+            self.addHost(
+                name,
+                cls=RouteNode,
+                ip=ip)
+
+            frr_router: FrrRouter = FrrRouter(name) 
+            self.routers.append(frr_router)
+            frr_router.configure(
+                ospf=node["ospf"],
+                vtysh=node["vtysh"],
+                daemons=node["daemons"]
+            )
+
+        for name in torus_topo.ground_stations(self.graph):
+            node = self.graph.nodes[name]
+            ip = node.get("ip")
+            if ip is not None:
+                ip = format(ip)
+            self.addHost(name, ip=ip, cls=RouteNode)
+            station = GroundStation(name, node["uplinks"])
+            self.ground_stations.append(station)
+
+        # Create links between routers
+        for name, edge in self.graph.edges.items():
+            router1 = name[0]
+            ip1 = edge["ip"][router1]
+            intf1 = edge["intf"][router1]
+
+            router2 = name[1]
+            ip2 = edge["ip"][router2]
+            intf2 = edge["intf"][router2]
+
+            self.addLink(
+                router1,
+                router2,
+                intfName1=intf1,
+                intfName2=intf2,
+                params1={"ip": format(ip1)},
+                params2={"ip": format(ip2)},
+            )
+
+
+class FrrSimRuntime:
+    """
+    Code for the FRR / Mininet / Monitoring functions.
+    """
+    def __init__(self, topo: NetxTopo, net: mininet.net.Mininet):
+        self.graph = topo.graph
+
         self.routers: dict[str, FrrRouter] = {}
         self.ground_stations: dict[str, GroundStation] = {}
 
+        for frr_router in topo.routers:
+            self.routers[frr_router.name] = frr_router
+        for ground_station in topo.ground_stations:
+            self.ground_stations[ground_station.name] = ground_station
+
         self.stat_samples = []
         fd, self.db_file = tempfile.mkstemp(suffix=".sqlite")
-        self.net = None
-        self.stub_net = True
-        open(fd, "r").close()
-        print(f"Master db file {self.db_file}")
-        super().__init__()
-
-    def start_routers(self, net: mininet.net.Mininet):
-        # Populate master db file
-        data = []
-        if net is not None:
-            self.net = net
-            self.stub_net = False
-        else:
+        self.net = net
+        self.stub_net = False
+        # If net is none, we are running in a stub mode without mininet or FRR.
+        if self.net is None:
             self.net = StubMininet()
             self.stub_net = True
 
+        # Create monitoring DB file.
+        open(fd, "r").close()
+        print(f"Master db file {self.db_file}")
+
+    def start_routers(self) -> None: 
+        # Populate master db file
+        data = []
         for name in self.routers:
-            if net is not None:
-                node = net.getNodeByName(name)
+            node = self.net.getNodeByName(name)
+            if node is not None:
                 data.append((node.name, node.defaultIntf().ip))
         mnet.pmonitor.init_targets(self.db_file, data)
 
         # Start routing
         for frr_router in self.routers.values():
-            if net is not None:
-                node = net.getNodeByName(frr_router.name)
-            else:
-                node = None
+            node = self.net.getNodeByName(frr_router.name)
             frr_router.start(node)
 
         # Wait for start to complete.
@@ -384,54 +444,6 @@ class NetxTopo(mininet.topo.Topo):
         os.unlink(self.db_file)
 
 
-    def build(self, **_opts):
-        # Create routers
-
-        for name in torus_topo.satellites(self.graph):
-            node = self.graph.nodes[name]
-            ip = node.get("ip")
-            if ip is not None:
-                ip = format(ip)
-            self.addHost(
-                name,
-                cls=RouteNode,
-                ip=ip)
-
-            frr_router: FrrRouter = FrrRouter(name) 
-            self.routers[name] = frr_router
-            frr_router.configure(
-                ospf=node["ospf"],
-                vtysh=node["vtysh"],
-                daemons=node["daemons"]
-            )
-
-        for name in torus_topo.ground_stations(self.graph):
-            node = self.graph.nodes[name]
-            ip = node.get("ip")
-            if ip is not None:
-                ip = format(ip)
-            self.addHost(name, ip=ip)
-            station = GroundStation(name, node["uplinks"])
-            self.ground_stations[name] = station
-
-        # Create links between routers
-        for name, edge in self.graph.edges.items():
-            router1 = name[0]
-            ip1 = edge["ip"][router1]
-            intf1 = edge["intf"][router1]
-
-            router2 = name[1]
-            ip2 = edge["ip"][router2]
-            intf2 = edge["intf"][router2]
-
-            self.addLink(
-                router1,
-                router2,
-                intfName1=intf1,
-                intfName2=intf2,
-                params1={"ip": format(ip1)},
-                params2={"ip": format(ip2)},
-            )
 
     def get_monitor_stats(self):
         good_count: int = 0
@@ -626,7 +638,7 @@ class NetxTopo(mininet.topo.Topo):
                 uplink.default = False
             # Mark new default and set
             closest_uplink.default = True 
-            station_node = net.getNodeByName(station.name)
+            station_node = self.net.getNodeByName(station.name)
             route = "via %s" % format(closest_uplink.ip_pool_entry.ip2.ip)
             print(f"set default route for {station.name} to {route}")
             if station_node is not None:
