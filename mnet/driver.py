@@ -27,6 +27,9 @@ import simapi
 
 
 class NetxContext:
+    """
+    References key simulation resources and protects against multi-threaded access.
+    """
     def __init__(self, frrt: FrrSimRuntime, uvicorn_server):
         self.frrt = frrt
         self.server = uvicorn_server
@@ -55,6 +58,9 @@ global_context: NetxContext = None
 
 @contextmanager
 def get_context():
+    """"
+    Serialize access to the global context
+    """
     try:
         global_context.aquire()
         yield global_context
@@ -63,6 +69,9 @@ def get_context():
 
 
 def background_thread():
+    """
+    Drive background collection of monitoring stats.
+    """
     while True:
         time.sleep(20)
         with get_context() as context:
@@ -71,8 +80,10 @@ def background_thread():
 
 app = FastAPI()
 
-
 def run(frrt: FrrSimRuntime):
+    """
+    Start the control API
+    """
     global global_context
 
     config = uvicorn.Config(
@@ -87,6 +98,7 @@ def run(frrt: FrrSimRuntime):
     server.run()
 
 
+# Used with HTML templates to generate pages
 templates = Jinja2Templates(directory="mnet/templates")
 
 
@@ -183,6 +195,9 @@ def view_link(request: Request, node1: str, node2: str):
 
 @app.put("/link")
 def set_link(link: simapi.Link):
+    """
+    Set link up or down
+    """
     with get_context() as context:
         state = "up" if link.up else "down"
         context.add_event(f"set link {link.node1_name} - {link.node2_name} {state}")
@@ -195,10 +210,12 @@ def set_link(link: simapi.Link):
 
 @app.put("/uplinks")
 def set_uplinks(uplinks: simapi.UpLinks):
+    """
+    Change the current set of uplinks for a ground station
+    """
     with get_context() as context:
         print(f"set uplinks for {uplinks.ground_node}")
-        # TODO: add ground stations and uplinks to NxTopo
-        # Add a call to set the uplinks which will diff and change the links
+        # TODO: create an event in the event log?
         context.frrt.set_station_uplinks(uplinks.ground_node, 
                                              uplinks.uplinks)
         return {"status": "OK"}

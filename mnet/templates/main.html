@@ -99,7 +99,7 @@
 			<a href="{{ url_for('view_station', name=entry.name) }}">
 				{{ entry.name }} 
 			</a>
-			{{ entry.defaultIP()}}
+			{{ entry.defaultIP() }}
 			<ul>
 			{% for link in entry.uplinks %}
 			<li>

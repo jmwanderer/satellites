@@ -250,13 +250,13 @@ class FrrRouter(MNetNodeWrap):
         print(f"stop router {self.name}")
         self.sendCmd(f"/usr/lib/frr/frrinit.sh stop '{self.name}'")
 
-    def frr_config_commands(self, commands: list[str]) -> bool:
+    def config_frr(self, daemon: str, commands: list[str]) -> bool:
         if self.node is None:
             # Running in stub mode
             return True
 
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        path = FrrRouter.VTY_DIR.format(node=self.name, daemon="ospfd")
+        path = FrrRouter.VTY_DIR.format(node=self.name, daemon=daemon)
         result = True
         try:
             sock.connect(path)
@@ -299,6 +299,11 @@ class FrrRouter(MNetNodeWrap):
 
 
 class StubMininet:
+    """
+    In order to run and test with out standing up an entire mininet environment (that is run as root),
+    we can stub out the mininet calls. This results in the mininet nodes being returned as None and code
+    needs to handle this case.
+    """
     def __init__(self):
         pass
 
@@ -319,6 +324,9 @@ class StubMininet:
 
 
 class NetxTopo(mininet.topo.Topo):
+    """
+    Mininet topology object used to build the virtual network.
+    """
     def __init__(self, graph: networkx.Graph):
         self.graph = graph
         self.routers: list[FrrRouter] = []
@@ -326,6 +334,9 @@ class NetxTopo(mininet.topo.Topo):
         super().__init__()
 
     def build(self, *args, **params):
+        """
+        Build the network according to the information in the networkx.Graph
+        """
         # Create routers
         for name in torus_topo.satellites(self.graph):
             node = self.graph.nodes[name]
@@ -465,8 +476,8 @@ class FrrSimRuntime:
             good_count: int = random.randrange(20)
             total_count: int = random.randrange(20) + good_count
         else:
-            for frr_router in self.routers.values():
-                db_working = mnet.pmonitor.open_db(frr_router.working_db)
+            for node in self.nodes.values():
+                db_working = mnet.pmonitor.open_db(node.working_db)
                 good, total = mnet.pmonitor.get_status_count(db_working)
                 db_working.close()
                 good_count += good
@@ -596,7 +607,7 @@ class FrrSimRuntime:
                 print(f"Add uplink {station.name}- {link.sat_node}")
                 uplink = station.add_uplink(link.sat_node, link.distance)
                 if uplink is not None:
-                    self._create_link(
+                    self._create_uplink(
                         station_name,
                         link.sat_node,
                         uplink.ip_pool_entry.network,
@@ -606,26 +617,30 @@ class FrrSimRuntime:
         self._update_default_route(station)
         return True
 
-    def _create_link(
+    def _create_uplink(
         self,
-        node1: str,
-        node2: str,
+        station_name: str,
+        sat_name: str,
         ip_nw: ipaddress.IPv4Network,
         ip1: ipaddress.IPv4Interface,
         ip2: ipaddress.IPv4Interface,
     ):
         # Create the link
         self.net.addLink(
-            node1, node2, params1={"ip": format(ip1)}, params2={"ip": format(ip2)}
+            station_name, sat_name, params1={"ip": format(ip1)}, params2={"ip": format(ip2)}
         )
-        # Advertise network in OSPF
-        frr_node = self.net.getNodeByName(node2)
-        # TODO: add
-        # station = self.ground_stations[station_name]
-        # ip route {ground station ip /32} {ground station pool ip}",
-        # ospf redistribute static in base config
-        # Note: could also use redistribute connected - maybe better
-        #frr_node.frr_config_commands(
+
+        # Configure FRR daemons to handle the uplink
+        station = self.ground_stations[station_name]
+        frr_router = self.routers[sat_name]
+
+        # Set a static route on the satellite node that refers to the ground station loopback IP
+        # ip route {ground station ip /32} {ground station pool ip}
+        frr_router.config_frr("staticd", f"ip route {station.defaultIP()}/32 {format(ip1.ip)}")
+
+        # After we remove redistribute connected, need to advertise the network in OSPF
+        # Perhaps use the passive config?
+        #frr_node.frr_config_commands(kkkk
         #        [ "router ospf",
         #         f"network {format(ip_nw)} area 0.0.0.0"])
 
