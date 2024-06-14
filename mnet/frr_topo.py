@@ -99,6 +99,7 @@ class MNetNodeWrap:
         pass
 
     def startMonitor(self, db_master_file, db_master):
+        print(f"start monitor {self.name}:{self.defaultIP()}")
         self.sendCmd(
             f"python3 -m mnet.pmonitor monitor '{db_master_file}' '{self.working_db}' {self.defaultIP()} >> /dev/null 2>&1  &"
         )
@@ -112,7 +113,7 @@ class MNetNodeWrap:
         """
         Return the default interface
         """
-        if self.node is not None:
+        if self.node is not None and self.node.defaultIntf() is not None:
             return self.node.defaultIntf().ip
         return self.default_ip
 
@@ -329,14 +330,17 @@ class NetxTopo(mininet.topo.Topo):
         for name in torus_topo.satellites(self.graph):
             node = self.graph.nodes[name]
             ip = node.get("ip")
+            ip_intf = None
+            ip_addr = None
             if ip is not None:
-                ip = format(ip)
+                ip_intf = format(ip)
+                ip_addr = format(ip.ip)
             self.addHost(
                 name,
                 cls=RouteNode,
-                ip=ip)
+                ip=ip_intf)
 
-            frr_router: FrrRouter = FrrRouter(name, ip) 
+            frr_router: FrrRouter = FrrRouter(name, ip_addr) 
             self.routers.append(frr_router)
             frr_router.configure(
                 ospf=node["ospf"],
@@ -347,19 +351,28 @@ class NetxTopo(mininet.topo.Topo):
         for name in torus_topo.ground_stations(self.graph):
             node = self.graph.nodes[name]
             ip = node.get("ip")
+            ip_intf = None
+            ip_addr = None
             if ip is not None:
-                ip = format(ip)
-            self.addHost(name, ip=ip, cls=RouteNode)
-            station = GroundStation(name, ip, node["uplinks"])
+                ip_intf = format(ip)
+                ip_addr = format(ip.ip)
+            self.addHost(name, cls=RouteNode, ip=ip_intf)
+            station = GroundStation(name, ip_addr, node["uplinks"])
             self.ground_stations.append(station)
 
         # Create links between routers
         for name, edge in self.graph.edges.items():
             router1 = name[0]
+            router2 = name[1]
+
+            # Handle incomplete edged
+            if edge.get("ip") is None:
+                self.addLink(router1, router2)
+                return
+
             ip1 = edge["ip"][router1]
             intf1 = edge["intf"][router1]
 
-            router2 = name[1]
             ip2 = edge["ip"][router2]
             intf2 = edge["intf"][router2]
 

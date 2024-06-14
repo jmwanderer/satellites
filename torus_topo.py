@@ -162,6 +162,9 @@ def connect_rings(graph: networkx.Graph, ring1: int, ring2: int, num_ring_nodes:
 
 
 def add_ground_stations(graph: networkx.Graph) -> None:
+    # Create ground stations with links
+    # We need links because mininet doesn't handle nodes without links the
+    # way we want (e.g. will not call config on the mininet node)
     graph.add_node("G_PAO")
     node = graph.nodes["G_PAO"]
     node[TYPE] = TYPE_GROUND
@@ -173,18 +176,22 @@ def add_ground_stations(graph: networkx.Graph) -> None:
     node[TYPE] = TYPE_GROUND
     node[LAT] = -33.94056
     node[LON] = 151.17268
+    graph.add_edge("G_PAO", "G_SYD")
 
     graph.add_node("G_ZRH")
     node = graph.nodes["G_ZRH"]
     node[TYPE] = TYPE_GROUND
     node[LAT] = 47.45516
     node[LON] = 8.56350
+    graph.add_edge("G_SYD", "G_ZRH")
 
     graph.add_node("G_HND")
     node = graph.nodes["G_HND"]
     node[TYPE] = TYPE_GROUND
     node[LAT] = 35.54852
     node[LON] = 139.78079
+    graph.add_edge("G_ZRH", "G_HND")
+    graph.add_edge("G_HND", "G_PAO")
 
 
 #
