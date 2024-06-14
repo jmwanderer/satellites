@@ -97,14 +97,13 @@ class MNetNodeWrap:
         """
         Will be called after the mininet node has started
         """
-        if net is not None:
-            self.node = net.getNodeByName(self.name)
+        self.node = net.getNodeByName(self.name)
 
     def waitOutput(self) -> None:
         if self.node is not None:
             self.node.waitOutput()
 
-    def stop(self, net: mininet.net.Mininet) -> None:
+    def stop(self) -> None:
         """
         Will be called before the mininet node has stoped
         """
@@ -411,8 +410,7 @@ class FrrSimRuntime:
 
         # Start routing
         for frr_router in self.routers.values():
-            node = self.net.getNodeByName(frr_router.name)
-            frr_router.start(node)
+            frr_router.start(self.net)
 
         # Wait for start to complete.
         for frr_router in self.routers.values():
