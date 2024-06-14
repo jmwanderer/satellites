@@ -150,6 +150,18 @@ def view_router(request: Request, node: str):
         context={"router": router, "ring_list": ring_list, "status_list": status_list},
     )
 
+@app.get("/view/station/{name}", response_class=HTMLResponse)
+def view_station(request: Request, name: str):
+    with get_context() as context:
+        station = context.frrt.get_station(name)
+        status_list = context.frrt.get_node_status_list(name)
+        ring_list = context.frrt.get_ring_list()
+    return templates.TemplateResponse(
+        request=request,
+        name="station.html",
+        context={"station": station, "ring_list": ring_list, "status_list": status_list}
+    )
+
 
 @app.get("/view/link/{node1}/{node2}", response_class=HTMLResponse)
 def view_link(request: Request, node1: str, node2: str):

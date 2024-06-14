@@ -95,7 +95,11 @@
   	<h2>Ground Stations</h2>
 	<ul>
 	{% for entry in info["stations"] %}
-		<li>Station: {{ entry.name }} 
+		<li>Station: 
+			<a href="{{ url_for('view_station', name=entry.name) }}">
+				{{ entry.name }} 
+			</a>
+			{{ entry.defaultIP()}}
 			<ul>
 			{% for link in entry.uplinks %}
 			<li>

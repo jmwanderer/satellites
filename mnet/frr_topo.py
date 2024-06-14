@@ -65,30 +65,19 @@ class RouteNode(mininet.node.Node):
         mininet.node.Node.setIP(self, ip)
 
 
-@dataclass
-class IPPoolEntry:
-    network: ipaddress.IPv4Network
-    ip1: ipaddress.IPv4Interface
-    ip2: ipaddress.IPv4Interface
-    used: bool = False
-
-
-@dataclass
-class Uplink:
-    sat_name: str
-    distance: int
-    ip_pool_entry: IPPoolEntry
-    default: bool = False
-
 
 class MNetNodeWrap:
     """
     """
 
-    def __init__(self, name : str) -> None:
+    def __init__(self, name : str, default_ip: str) -> None:
         self.name : str = name
+        self.default_ip : str = default_ip
         self.node : mininet.node.Node = None
-
+        fd, self.working_db = tempfile.mkstemp(suffix=".sqlite")
+        open(fd, "r").close()
+        print(f"{self.name} db file {self.working_db}")
+ 
     def sendCmd(self, command :str):
         if self.node is not None:
             self.node.sendCmd(command)
@@ -109,6 +98,40 @@ class MNetNodeWrap:
         """
         pass
 
+    def startMonitor(self, db_master_file, db_master):
+        self.sendCmd(
+            f"python3 -m mnet.pmonitor monitor '{db_master_file}' '{self.working_db}' {self.defaultIP()} >> /dev/null 2>&1  &"
+        )
+        mnet.pmonitor.set_running(db_master, self.defaultIP(), True)
+
+    def stopMonitor(self, db_master):
+        mnet.pmonitor.set_can_run(db_master, self.defaultIP(), False)
+        os.unlink(self.working_db)
+
+    def defaultIP(self) -> str:
+        """
+        Return the default interface
+        """
+        if self.node is not None:
+            return self.node.defaultIntf().ip
+        return self.default_ip
+
+
+@dataclass
+class IPPoolEntry:
+    network: ipaddress.IPv4Network
+    ip1: ipaddress.IPv4Interface
+    ip2: ipaddress.IPv4Interface
+    used: bool = False
+
+
+@dataclass
+class Uplink:
+    sat_name: str
+    distance: int
+    ip_pool_entry: IPPoolEntry
+    default: bool = False
+
 
 class GroundStation(MNetNodeWrap):
     """
@@ -118,8 +141,8 @@ class GroundStation(MNetNodeWrap):
     Not a mininet node.
     """
 
-    def __init__(self, name: str, uplinks: list[dict[str,typing.Any]]) -> None:
-        super().__init__(name)
+    def __init__(self, name: str, default_ip: str, uplinks: list[dict[str,typing.Any]]) -> None:
+        super().__init__(name, default_ip)
         self.uplinks: list[Uplink] = []
         self.ip_pool: list[IPPoolEntry] = []
         for link in uplinks:
@@ -174,11 +197,8 @@ class FrrRouter(MNetNodeWrap):
     VTY_DIR = "/var/frr/{node}/{daemon}.vty"
     LOG_DIR = "/var/log/frr/{node}"
 
-    def __init__(self, name: str):
-        super().__init__(name)
-        fd, self.working_db = tempfile.mkstemp(suffix=".sqlite")
-        open(fd, "r").close()
-        print(f"{self.name} db file {self.working_db}")
+    def __init__(self, name: str, default_ip: str):
+        super().__init__(name, default_ip)
         self.no_frr = False
 
     def configure(self, vtysh: str, daemons: str, ospf: str) -> None:
@@ -228,24 +248,6 @@ class FrrRouter(MNetNodeWrap):
         # Cleanup and stop frr daemons
         print(f"stop router {self.name}")
         self.sendCmd(f"/usr/lib/frr/frrinit.sh stop '{self.name}'")
-
-    def startMonitor(self, db_master_file, db_master):
-        self.sendCmd(
-            f"python3 -m mnet.pmonitor monitor '{db_master_file}' '{self.working_db}' {self.defaultIP()} >> /dev/null 2>&1  &"
-        )
-        mnet.pmonitor.set_running(db_master, self.defaultIP(), True)
-
-    def stopMonitor(self, db_master):
-        mnet.pmonitor.set_can_run(db_master, self.defaultIP(), False)
-        os.unlink(self.working_db)
-
-    def defaultIP(self) -> str:
-        """
-        Return the default interface
-        """
-        if self.node is not None:
-            return self.node.defaultIntf().ip
-        return "192.1.1.1"
 
     def frr_config_commands(self, commands: list[str]) -> bool:
         if self.node is None:
@@ -334,7 +336,7 @@ class NetxTopo(mininet.topo.Topo):
                 cls=RouteNode,
                 ip=ip)
 
-            frr_router: FrrRouter = FrrRouter(name) 
+            frr_router: FrrRouter = FrrRouter(name, ip) 
             self.routers.append(frr_router)
             frr_router.configure(
                 ospf=node["ospf"],
@@ -348,7 +350,7 @@ class NetxTopo(mininet.topo.Topo):
             if ip is not None:
                 ip = format(ip)
             self.addHost(name, ip=ip, cls=RouteNode)
-            station = GroundStation(name, node["uplinks"])
+            station = GroundStation(name, ip, node["uplinks"])
             self.ground_stations.append(station)
 
         # Create links between routers
@@ -378,12 +380,15 @@ class FrrSimRuntime:
     def __init__(self, topo: NetxTopo, net: mininet.net.Mininet):
         self.graph = topo.graph
 
+        self.nodes: dict[str, MNetNodeWrap] = {}
         self.routers: dict[str, FrrRouter] = {}
         self.ground_stations: dict[str, GroundStation] = {}
 
         for frr_router in topo.routers:
+            self.nodes[frr_router.name] = frr_router
             self.routers[frr_router.name] = frr_router
         for ground_station in topo.ground_stations:
+            self.nodes[ground_station.name] = ground_station
             self.ground_stations[ground_station.name] = ground_station
 
         self.stat_samples = []
@@ -402,46 +407,43 @@ class FrrSimRuntime:
     def start_routers(self) -> None: 
         # Populate master db file
         data = []
-        for name in self.routers:
-            node = self.net.getNodeByName(name)
-            if node is not None:
-                data.append((node.name, node.defaultIntf().ip))
+        for node in self.nodes.values():
+            data.append((node.name, node.defaultIP()))
         mnet.pmonitor.init_targets(self.db_file, data)
 
-        # Start routing
-        for frr_router in self.routers.values():
-            frr_router.start(self.net)
+        # Start all nodes
+        for node in self.nodes.values():
+            node.start(self.net)
 
         # Wait for start to complete.
-        for frr_router in self.routers.values():
-            frr_router.waitOutput()
+        for node in self.nodes.values():
+            node.waitOutput()
 
-        # Start monitoring
+        # Start monitoring on all nodes
         db_master = mnet.pmonitor.open_db(self.db_file)
-        for frr_router in self.routers.values():
-            frr_router.startMonitor(self.db_file, db_master)
+        for node in self.nodes.values():
+            node.startMonitor(self.db_file, db_master)
         db_master.close()
 
         # Wait for monitoring to start
-        for frr_router in self.routers.values():
-            frr_router.waitOutput()
+        for node in self.nodes.values():
+            node.waitOutput()
 
     def stop_routers(self):
+        # Stop monitor on all nodes
         db_master = mnet.pmonitor.open_db(self.db_file)
-        for frr_router in self.routers.values():
-            frr_router.stopMonitor(db_master)
+        for node in self.nodes.values():
+            node.stopMonitor(db_master)
         db_master.close()
 
-        for frr_router in self.routers.values():
-            frr_router.stop()
+        for node in self.nodes.values():
+            node.stop()
 
         # Wait for commands to complete - important!.
         # Otherwise processes may not shut down.
-        for frr_router in self.routers.values():
-            frr_router.waitOutput()
+        for node in self.nodes.values():
+            node.waitOutput()
         os.unlink(self.db_file)
-
-
 
     def get_monitor_stats(self):
         good_count: int = 0
@@ -465,8 +467,8 @@ class FrrSimRuntime:
             self.stat_samples.pop(0)
 
     def get_node_status_list(self, name: str):
-        frr_router = self.routers[name]
-        db_working = mnet.pmonitor.open_db(frr_router.working_db)
+        node = self.nodes[name]
+        db_working = mnet.pmonitor.open_db(node.working_db)
         result = []
         if not self.stub_net:
             result = mnet.pmonitor.get_status_list(db_working)
@@ -529,6 +531,9 @@ class FrrSimRuntime:
 
     def get_ground_stations(self) -> list[GroundStation]:
         return [x for x in self.ground_stations.values()]
+
+    def get_station(self, name):
+        return self.ground_stations[name]
 
     def set_link_state(
         self, node1: str, node2: str, state_up: bool):

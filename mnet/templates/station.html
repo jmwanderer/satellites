@@ -1,0 +1,38 @@
+<html>
+  <head>
+  </head>
+  <body>
+	  <a href="{{ url_for('root') }}">Home</a>
+	  <h1>Ground Station {{ station["name"] }}</h1> 
+	  Loopback: {{ station.defaultIP() }}
+	  <h2>Uplinks</h2>
+	  <ul>
+	  {% for link in station.uplinks %}
+	  <li>Uplink: {{ link.sat_name }} {{ link.distance }} km,
+		  {{ link.ip_pool_entry.ip1 }} - {{ link.ip_pool_entry.ip2 }}
+	  {% endfor %}
+	  </ul>
+	  <h2> Connectivity </h2>
+	  <table>
+	      <body>
+	  {% for ring in ring_list %}
+	  	<tr>
+	      {% for node in ring %}
+	      	    {%- set bg="lightgrey" %}
+		    {% if status_list[node] == 1 %}
+	      	    {%- set bg="lightgreen" %}
+		    {% elif status_list[node] == 0 %}
+	      	    {%- set bg="pink" %}
+		    {% endif %}
+		    <td style="background-color:{{bg}};">
+			{{ node }}
+		    </td>
+	      {% endfor %} 
+	  	</tr>
+	  {% endfor %}
+	      </body>
+	  <table>
+  </body>
+</html> 
+
+
