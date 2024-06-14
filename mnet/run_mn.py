@@ -63,7 +63,7 @@ def usage():
 
 if __name__ == "__main__":
     use_cli = False
-    use_mnet = False
+    use_mnet = True
     if "--cli" in sys.argv:
         use_cli = True
         sys.argv.remove("--cli")
