@@ -636,7 +636,7 @@ class FrrSimRuntime:
 
         # Set a static route on the satellite node that refers to the ground station loopback IP
         # ip route {ground station ip /32} {ground station pool ip}
-        frr_router.config_frr("staticd", f"ip route {station.defaultIP()}/32 {format(ip1.ip)}")
+        frr_router.config_frr("staticd", [ f"ip route {station.defaultIP()}/32 {format(ip1.ip)}" ])
 
         # After we remove redistribute connected, need to advertise the network in OSPF
         # Perhaps use the passive config?
