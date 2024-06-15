@@ -67,15 +67,16 @@ def get_context():
     finally:
         global_context.release()
 
-
+run_thread: bool = True
 def background_thread():
     """
     Drive background collection of monitoring stats.
     """
-    while True:
+    while run_thread:
         time.sleep(20)
-        with get_context() as context:
-            context.frrt.sample_stats()
+        if run_thread:
+            with get_context() as context:
+                context.frrt.sample_stats()
 
 
 app = FastAPI()
@@ -85,6 +86,7 @@ def run(frrt: FrrSimRuntime):
     Start the control API
     """
     global global_context
+    global run_thread
 
     config = uvicorn.Config(
         app, host="0.0.0.0", port=8000, log_level="info", loop="asyncio"
@@ -96,6 +98,7 @@ def run(frrt: FrrSimRuntime):
     bg_thread.daemon = True
     bg_thread.start()
     server.run()
+    run_thread = False
 
 
 # Used with HTML templates to generate pages
