@@ -79,7 +79,7 @@ def get_status_count(db):
 
 def get_last_five(db) ->list[tuple[str,bool]]:
     c = db.cursor()
-    q = c.execute("SELECT name, responded FROM targets WHERE total_count > 0 ORDER BY sample_time LIMIT 5")
+    q = c.execute("SELECT name, responded FROM targets ORDER BY sample_time LIMIT 5")
     result = []
     for name, responded in q.fetchall():
         result.append((name, responded))
