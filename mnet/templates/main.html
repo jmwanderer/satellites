@@ -100,22 +100,22 @@
 				{{ entry.name }} 
 			</a>
 			{{ entry.defaultIP() }}
-	  		<table>
+	  		<table style="display:inline">
 	      		<body>
-	  				<tr>
+	  			<tr>
 	     			{% for stat in info["ping_stats"][entry.name] %}
 		    		{% if stat[1] == 1 %}
 	      	    		{%- set bg="lightgreen" %}
 		    		{% elif stat[1] == 0 %}
 	      	    		{%- set bg="pink" %}
 		    		{% endif %}
-		    			<td style="background-color:{{bg}};">
+		    		<td style="background-color:{{bg}};">
 							{{ stat[0] }}
-		    			</td>
+		    		</td>
 	      			{% endfor %} 
-	  				</tr>
+	  			</tr>
 	      		</body>
-	  		<table>
+	  		</table>
 			<ul>
 			{% for link in entry.uplinks %}
 			<li>
@@ -132,22 +132,22 @@
 	{% for entry in info["routers"] %}
 	<li> <a href="{{ url_for('view_router', node=entry[0]) }}">
 			{{ entry[0] }} </a>: {{ entry[1] }}
-	  		<table>
+	  		<table style="display:inline">
 	      		<body>
-	  				<tr>
-	     			{% for stat in info["ping_stats"][entry.name] %}
+ 				<tr>
+	     			{% for stat in info["ping_stats"][entry[0]] %}
 		    		{% if stat[1] == 1 %}
 	      	    		{%- set bg="lightgreen" %}
 		    		{% elif stat[1] == 0 %}
 	      	    		{%- set bg="pink" %}
 		    		{% endif %}
-		    			<td style="background-color:{{bg}};">
-							{{ stat[0] }}
-		    			</td>
+	    			<td style="background-color:{{bg}};">
+				{{ stat[0] }}
+	    			</td>
 	      			{% endfor %} 
-	  				</tr>
+  				</tr>
 	      		</body>
-	  		<table>
+	  		</table>
 	{% endfor %}
 	</ul>
 
