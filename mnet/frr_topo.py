@@ -431,8 +431,12 @@ class FrrSimRuntime:
     def start_routers(self) -> None: 
         # Populate master db file
         data = []
-        for node in self.nodes.values():
-            data.append((node.name, node.defaultIP()))
+        # Stable targets - to monitor
+        for router in self.routers.values():
+            data.append((router.name, router.defaultIP(), True))
+        # Not stable targets - don't monitor
+        for station in self.ground_stations.values():
+            data.append((station.name, station.defaultIP(), False))
         mnet.pmonitor.init_targets(self.db_file, data)
 
         # Start all nodes
@@ -675,13 +679,3 @@ class FrrSimRuntime:
             if station_node is not None:
                 station_node.setDefaultRoute(route)
  
-if __name__ == "__main__":
-    graph = torus_topo.create_network(8, 8)
-    frr_config_topo.annotate_graph(graph)
-    topo = NetxTopo(graph)
-    topo.build()
-
-    for name in torus_topo.satellites(graph):
-        node = graph.nodes[name]
-        print(node["ospf"])
-        print()

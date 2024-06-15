@@ -283,6 +283,13 @@ def trace_path(start_node_name: str, target_node_name: str, route_tables: dict[s
     return current_node_name is not None
 
 
+def run_small_test() -> bool:
+    """
+    Make a graph
+    """
+    graph: networkx.Graph = create_network()
+    return True
+
 def run_routing_test() -> bool:
     """
     Make a graph and exercise path tracing

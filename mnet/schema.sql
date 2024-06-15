@@ -4,8 +4,9 @@ CREATE TABLE targets (
   name TEXT not NULL,
   run BOOLEAN DEFAULT TRUE,
   running BOOLEAN DEFAULT FALSE,
-  updated INTEGER  DEFAULT 0,
+  stable BOOLEAN DEFAULT TRUE,
   responded BOOLEAN DEFAULT FALSE,
+  sample_time INTEGER DEFAULT 0,
   total_count INTEGER DEFAULT 0,
   total_success INTEGER DEFAULT 0
 );

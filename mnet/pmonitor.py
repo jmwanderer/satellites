@@ -106,7 +106,7 @@ def sample_target(db, name: str, address: str):
     if result:
         c.execute(
             "UPDATE targets SET responded = TRUE, "
-            + "updated = ?,"
+            + "sample_time = ?,"
             + "total_count = total_count + 1, "
             + "total_success = total_success + 1 "
             + "WHERE address = ?",
@@ -118,7 +118,7 @@ def sample_target(db, name: str, address: str):
     elif prev_responded:
         c.execute(
             "UPDATE targets SET responded = FALSE, "
-            + "updated = ?,"
+            + "sample_time = ?,"
             + "total_count = total_count + 1 WHERE address = ?",
             (
                 now,
@@ -139,7 +139,7 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
         targets = []
         logging.info("reload target list")
         c = db_master.cursor()
-        q = c.execute("SELECT name, address from targets")
+        q = c.execute("SELECT name, address FROM targets WHERE stable = TRUE")
         for entry in q.fetchall():
             targets.append(entry)
 
@@ -150,13 +150,14 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
                 break
 
         if index != -1:
-            # Rotate list
+            # Rotate list so all elements are sampling different targets
             tmp = targets[index + 1 :]
             tmp.extend(targets[:index])
             targets = tmp
 
         for target in targets:
-            time.sleep(3)
+            if not TEST:
+                time.sleep(3)
             running = can_run(db_master, address)
             target_running = is_running(db_master, target[1])
             if running and target_running:
@@ -166,7 +167,7 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
         running = can_run(db_master, address)
 
 
-def init_targets(db_file_path: str, data: list[tuple[str]]):
+def init_targets(db_file_path: str, data: list[tuple[str,str,bool]]):
     create_db(db_file_path)
 
     db = open_db(db_file_path)
@@ -177,9 +178,10 @@ def init_targets(db_file_path: str, data: list[tuple[str]]):
     for entry in data:
         target = entry[0]
         address = entry[1]
+        stable = entry[2]
 
         c.execute(
-            "INSERT INTO targets (name, address) VALUES (?, ?)", (target, address)
+            "INSERT INTO targets (name, address, stable) VALUES (?, ?, ?)", (target, address, stable)
         )
     db.commit()
     db.close()
@@ -187,9 +189,10 @@ def init_targets(db_file_path: str, data: list[tuple[str]]):
 
 def test():
     data = [
-        ("host1", "192.168.33.1"),
-        ("host2", "192.168.44.2"),
-        ("host3", "192.168.55.2"),
+        ("host1", "192.168.33.1", True),
+        ("host2", "192.168.44.2", True),
+        ("host3", "192.168.55.2", True),
+        ("host3", "192.168.55.3", False),
     ]
     db_master = "master.sqlite"
     db_working = "work.sqlite"
@@ -199,8 +202,10 @@ def test():
     TEST = True
     set_running(open_db(db_master), data[1][1], True)
     monitor_targets(db_master, db_working, data[0][1])
+    monitor_targets(db_master, db_working, data[3][1])
     good, total = get_status_count(open_db(db_working))
     print(f"status {good} / {total}")
+    return True
 
 
 if __name__ == "__main__":

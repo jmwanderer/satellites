@@ -5,8 +5,8 @@ import sat_pos_samples
 import gps_sats
 
 class TestCase(unittest.TestCase):
-    def testTorusRouting(self):
-        self.assertTrue(torus_topo.run_routing_test())
+    def testTorus(self):
+        self.assertTrue(torus_topo.run_small_test())
 
     def testFrrConfig(self):
         self.assertTrue(frr_config_topo.test_config_graph())
