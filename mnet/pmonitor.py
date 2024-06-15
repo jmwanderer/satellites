@@ -65,9 +65,9 @@ def set_can_run(db, address: str, can_run):
 
 def get_status_count(db):
     c = db.cursor()
-    q = c.execute("SELECT COUNT(*) FROM targets WHERE responded = TRUE")
+    q = c.execute("SELECT COUNT(*) FROM targets WHERE stable = TRUE AND responded = TRUE")
     good_targets = q.fetchone()[0]
-    q = c.execute("SELECT COUNT(*) FROM targets WHERE total_count > 0")
+    q = c.execute("SELECT COUNT(*) FROM targets WHERE stable = TRUE AND total_count > 0")
     total_targets = q.fetchone()[0]
     return good_targets, total_targets
 

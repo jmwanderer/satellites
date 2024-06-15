@@ -201,19 +201,27 @@ class FrrRouter(MNetNodeWrap):
     def __init__(self, name: str, default_ip: str):
         super().__init__(name, default_ip)
         self.no_frr = False
+        self.vtysh = None
+        self.daemons = None
+        self.ospf = None
 
     def configure(self, vtysh: str, daemons: str, ospf: str) -> None:
+        self.vtysh = vtysh
+        self.daemons = daemons
+        self.ospf = ospf
+
+
+    def write_configs(self) -> None:
         # Get frr config and save to frr config directory
         cfg_dir = FrrRouter.CFG_DIR.format(node=self.name)
         log_dir = FrrRouter.LOG_DIR.format(node=self.name)
 
-        try:
-            uinfo = pwd.getpwnam("frr")
-        except KeyError:
-            # Suport this for running without mininet / FRR
+        # Suport this for running without mininet / FRR
+        if self.no_frr:
             print("Warning: not running FRR")
-            self.no_frr = True
             return
+
+        uinfo = pwd.getpwnam("frr")
 
         if not os.path.exists(cfg_dir):
             # sudo install -m 775 -o frr -g frrvty -d {cfg_dir}
@@ -229,17 +237,20 @@ class FrrRouter(MNetNodeWrap):
             os.chown(log_dir, uinfo.pw_uid, uinfo.pw_gid)
 
         self.write_cfg_file(
-            f"{cfg_dir}/vtysh.conf", vtysh, uinfo.pw_uid, uinfo.pw_gid
+            f"{cfg_dir}/vtysh.conf", self.vtysh, uinfo.pw_uid, uinfo.pw_gid
         )
         self.write_cfg_file(
-            f"{cfg_dir}/daemons", daemons, uinfo.pw_uid, uinfo.pw_gid
+            f"{cfg_dir}/daemons", self.daemons, uinfo.pw_uid, uinfo.pw_gid
         )
         self.write_cfg_file(
-            f"{cfg_dir}/frr.conf", ospf, uinfo.pw_uid, uinfo.pw_gid
+            f"{cfg_dir}/frr.conf", self.ospf, uinfo.pw_uid, uinfo.pw_gid
         )
 
     def start(self, net: mininet.net.Mininet) -> None:
         super().start(net)
+        if self.node is None:
+            self.no_frr = True
+        self.write_configs()
         # Start frr daemons
         print(f"start router {self.name}")
         self.sendCmd(f"/usr/lib/frr/frrinit.sh start '{self.name}'")

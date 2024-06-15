@@ -1,10 +1,10 @@
 .PHONY: test
 
 test:
-	python -m unittest tests.py
-	PYTHONPATH=. python -m unittest mnet/tests.py
+	python3 -m unittest tests.py
+	PYTHONPATH=. python3 -m unittest mnet/tests.py
 
 
 large_test: test
-	python -m unittest large_tests.py
+	python3 -m unittest large_tests.py
 
