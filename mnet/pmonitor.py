@@ -148,8 +148,12 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
     db_local = open_db(db_path_local)
 
     # Make an entry for the current monitoring process
+    c = db_master.cursor()
+    q = c.execute("SELECT name, stable FROM targets WHERE address = ?", (address,))
+    name, stable = q.fetchone()
+    c.close()
     c = db_local.cursor()
-    c.execute("INSERT INTO targets (name, address, me) VALUES ('', ?, TRUE)", (address,))
+    c.execute("INSERT INTO targets (name, address, stable, me) VALUES (?, ?, ?, TRUE)", (name,address,stable))
     db_local.commit()
     c.close()
 
