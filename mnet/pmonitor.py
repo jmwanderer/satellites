@@ -79,7 +79,7 @@ def get_status_count(db):
 
 def get_last_five(db) ->list[tuple[str,bool]]:
     c = db.cursor()
-    q = c.execute("SELECT name, responded FROM targets ORDER BY sample_time LIMIT 5")
+    q = c.execute("SELECT name, responded FROM targets ORDER BY sample_time DESC LIMIT 5")
     result = []
     for name, responded in q.fetchall():
         result.append((name, responded))
@@ -107,15 +107,15 @@ def sample_target(db, name: str, address: str):
     result = sent == received
 
     prev_responded = False
+    now = time.time()
     c = db.cursor()
     q = c.execute("SELECT responded FROM targets WHERE address = ?", (address,))
     qr = q.fetchall()
     if len(qr) == 0:
-        c.execute("INSERT INTO targets (name, address) VALUES (?, ?)", (name, address))
+        c.execute("INSERT INTO targets (name, address, sample_time) VALUES (?, ?, ?)", (name, address, now))
     else:
         prev_responded = qr[0][0]
 
-    now = time.time()
     if result:
         c.execute(
             "UPDATE targets SET responded = TRUE, "
