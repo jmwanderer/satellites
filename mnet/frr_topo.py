@@ -77,6 +77,7 @@ class MNetNodeWrap:
         fd, self.working_db = tempfile.mkstemp(suffix=".sqlite")
         open(fd, "r").close()
         print(f"{self.name} db file {self.working_db}")
+        self.last_five_pings = []
  
     def sendCmd(self, command :str):
         if self.node is not None:
@@ -109,6 +110,13 @@ class MNetNodeWrap:
         mnet.pmonitor.set_can_run(db_master, self.defaultIP(), False)
         os.unlink(self.working_db)
 
+    def update_monitor_stats(self):
+        db = mnet.pmonitor.open_db(self.working_db)
+        good, total = mnet.pmonitor.get_status_count(db)
+        self.last_five_pings = mnet.pmonitor.get_last_five(db)
+        db.close()
+        return good, total
+ 
     def defaultIP(self) -> str:
         """
         Return the default interface
@@ -484,7 +492,7 @@ class FrrSimRuntime:
             node.waitOutput()
         os.unlink(self.db_file)
 
-    def get_monitor_stats(self):
+    def update_monitor_stats(self):
         good_count: int = 0
         total_count: int = 0
         if self.stub_net:
@@ -492,15 +500,19 @@ class FrrSimRuntime:
             total_count: int = random.randrange(20) + good_count
         else:
             for node in self.nodes.values():
-                db_working = mnet.pmonitor.open_db(node.working_db)
-                good, total = mnet.pmonitor.get_status_count(db_working)
-                db_working.close()
+                good, total = node.update_monitor_stats()
                 good_count += good
                 total_count += total
         return good_count, total_count
 
+    def get_last_five_stats(self) -> dict[str, list[tuple[str,bool]]]:
+        result: dict[str, list[tuple[str,bool]]] = {}
+        for node in self.nodes.values():
+            result[node.name] = node.last_five_pings
+        return result
+
     def sample_stats(self):
-        good, total = self.get_monitor_stats()
+        good, total = self.update_monitor_stats()
         self.stat_samples.append((datetime.datetime.now(), good, total))
         if len(self.stat_samples) > 200:
             self.stat_samples.pop(0)

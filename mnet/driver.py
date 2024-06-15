@@ -73,10 +73,10 @@ def background_thread():
     Drive background collection of monitoring stats.
     """
     while run_thread:
-        time.sleep(20)
         if run_thread:
             with get_context() as context:
                 context.frrt.sample_stats()
+        time.sleep(20)
 
 
 app = FastAPI()
@@ -112,7 +112,7 @@ def root(request: Request):
         current_time = datetime.datetime.now().isoformat(sep=" ", timespec="seconds")
         run_time = str(context.run_time())
         ring_nodes = context.frrt.get_topo_graph().graph["ring_nodes"]
-        good, total = context.frrt.get_monitor_stats()
+        good, total = context.frrt.update_monitor_stats()
         routers = context.frrt.get_router_list()
         links = context.frrt.get_link_list()
         src_stats = context.frrt.get_stat_samples()

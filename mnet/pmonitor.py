@@ -65,12 +65,25 @@ def set_can_run(db, address: str, can_run):
 
 def get_status_count(db):
     c = db.cursor()
-    q = c.execute("SELECT COUNT(*) FROM targets WHERE stable = TRUE AND responded = TRUE")
-    good_targets = q.fetchone()[0]
-    q = c.execute("SELECT COUNT(*) FROM targets WHERE stable = TRUE AND total_count > 0")
-    total_targets = q.fetchone()[0]
+    # Check if the current node is stable, if not exclude data for this stat
+    good_targets = 0
+    total_targets = 0
+    q = c.execute("SELECT COUNT(*) FROM targets WHERE stable = TRUE AND me = TRUE")
+    if q.fetchone()[0] > 0:
+        q = c.execute("SELECT COUNT(*) FROM targets WHERE stable = TRUE AND responded = TRUE")
+        good_targets = q.fetchone()[0]
+        q = c.execute("SELECT COUNT(*) FROM targets WHERE stable = TRUE AND total_count > 0")
+        total_targets = q.fetchone()[0]
+    c.close()
     return good_targets, total_targets
 
+def get_last_five(db) ->list[tuple[str,bool]]:
+    c = db.cursor()
+    q = c.execute("SELECT name, responded FROM targets WHERE total_count > 0 ORDER BY sample_time LIMIT 5")
+    result = []
+    for name, responded in q.fetchall():
+        result.append((name, responded))
+    return result
 
 def get_status_list(db):
     c = db.cursor()
@@ -133,6 +146,12 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
     create_db(db_path_local)
     db_master = open_db(db_path_master)
     db_local = open_db(db_path_local)
+
+    # Make an entry for the current monitoring process
+    c = db_local.cursor()
+    c.execute("INSERT INTO targets (name, address, me) VALUES ('', ?, TRUE)", (address,))
+    db_local.commit()
+    c.close()
 
     running = True
     while running:
@@ -204,6 +223,8 @@ def test():
     monitor_targets(db_master, db_working, data[0][1])
     monitor_targets(db_master, db_working, data[3][1])
     good, total = get_status_count(open_db(db_working))
+    results = get_status_list(open_db(db_working))
+    results = get_last_five(open_db(db_working))
     print(f"status {good} / {total}")
     return True
 
