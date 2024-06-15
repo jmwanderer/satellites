@@ -121,6 +121,8 @@ def root(request: Request):
             stats.append(
                 (stat[0].time().isoformat(timespec="seconds"), stat[1], stat[2])
             )
+        # dict: key name, value: list of up to five tuples. tuple[name,bool]
+        ping_stats = context.frrt.get_last_five_stats()
         events = []
         for entry in context.events[-min(len(context.events), 10) :]:
             events.append((entry[0].time().isoformat(timespec="seconds"), entry[1]))
@@ -137,6 +139,7 @@ def root(request: Request):
         "links": links,
         "events": events,
         "stats": stats,
+        "ping_stats": ping_stats,
         "stations": stations,
     }
     return templates.TemplateResponse(
