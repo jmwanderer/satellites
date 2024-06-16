@@ -574,9 +574,11 @@ class FrrSimRuntime:
         for neighbor in self.graph.adj[name].keys():
             edge = self.graph.adj[name][neighbor]
             result["neighbors"][neighbor] = {
-                "ip": edge["ip"][neighbor],
+                "ip_local": edge["ip"][name],
+                "ip_remote": edge["ip"][neighbor],
                 "up": self.get_link_state(name, neighbor),
-                "intf": edge["intf"][neighbor],
+                "intf_local": edge["intf"][name],
+                "intf_remote": edge["intf"][neighbor],
             }
         return result
 

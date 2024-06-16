@@ -7,16 +7,18 @@
 	  <h2>Interfaces</h2>
 	  <ul>
           {% if router.get("ip") %}
-	  <li>loopback: {{ router["ip"] }}
- 	  {% endif %}
+	  		<li>loopback: {{ router["ip"] }}
+ 	  	  {% endif %}
 	  {% for neighbor in router["neighbors"] %}
-	  <li>
-		  {{ router["neighbors"][neighbor]["intf"] }}
-		  {{ router["neighbors"][neighbor]["ip"] }} -
-	  	  <a href="{{ url_for('view_router', node=neighbor) }}">
+      <li>
+		  	<a href="{{ url_for('view_router', node=neighbor) }}">
 			  {{ neighbor }} </a> : 
-		  {{ router["neighbors"][neighbor]["up"][0] }} :
-		  {{ router["neighbors"][neighbor]["up"][1] }}
+		  {{ router["neighbors"][neighbor]["ip_local"] }} 
+		  ({{ router["neighbors"][neighbor]["intf_local"] }}) -
+		  {{ router["neighbors"][neighbor]["ip_remote"] }} 
+		  ({{ router["neighbors"][neighbor]["intf_remote"] }})
+		  [ {{ router["neighbors"][neighbor]["up"][0] }},
+		    {{ router["neighbors"][neighbor]["up"][1] }} ]
 	  {% endfor %}
 	  </ul>
 	  <h2> Connectivity </h2>

@@ -115,6 +115,16 @@ def root(request: Request):
         good, total = context.frrt.update_monitor_stats()
         routers = context.frrt.get_router_list()
         links = context.frrt.get_link_list()
+        link_stats = {}
+        link_stats["count"] = len(links)
+        up_count = 0
+        for link in links:
+            up1, up2 = context.frrt.get_link_state(link[0], link[1])
+            if up1 and up2:
+                up_count += 1
+
+        link_stats["up_count"] = up_count
+
         src_stats = context.frrt.get_stat_samples()
         stats = []
         for stat in src_stats:
@@ -136,7 +146,7 @@ def root(request: Request):
         "current_time": current_time,
         "run_time": run_time,
         "routers": routers,
-        "links": links,
+        "link_stats": link_stats,
         "events": events,
         "stats": stats,
         "ping_stats": ping_stats,

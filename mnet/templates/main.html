@@ -92,6 +92,23 @@
     );
   </script>
 
+  <h2>Links</h2>
+	<ul>
+		<li>Total: {{ info["link_stats"]["count"] }}</li>
+		<li>Up: {{ info["link_stats"]["up_count"] }}</li>
+	</ul>
+
+	<h2>Events</h2>
+	<ul>
+	{% if info["events"]|length == 0 %}
+	<i>None</i>
+	{% endif %}
+	{% for entry in info["events"] %}
+	<li> {{ entry[0] }}: {{ entry[1] }}
+	{% endfor %}
+	</ul>
+
+
   	<h2>Ground Stations</h2>
 	<ul>
 	{% for entry in info["stations"] %}
@@ -151,20 +168,6 @@
 	{% endfor %}
 	</ul>
 
-	<h2>Links ({{ info["links"]| length}})</h2>
-	<ul>
-	{% for entry in info["links"] %}
-	<li> <a href="{{ url_for('view_link', node1=entry[0], node2=entry[1]) }}">
-			{{ entry[0] }}-{{ entry[1] }} </a> : {{ entry[2] }}
-	{% endfor %}
-	</ul>
 
-
-	<h2>Events</h2>
-	<ul>
-	{% for entry in info["events"] %}
-	<li> {{ entry[0] }}: {{ entry[1] }}
-	{% endfor %}
-	</ul>
   </body>
 </html>
