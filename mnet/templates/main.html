@@ -1,25 +1,37 @@
 <html>
   <head>
 	<meta http-equiv="refresh" content="10">
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
   </head>
   <body>
-	<H1>SatNetMiniSim</H1>
-	<p>
-	Network: {{ info["rings"] }} Rings x {{ info["ring_nodes"] }} Nodes
+	<div class="col-lg-8 mx-auto p-4 py-md-5">
+		<header class="d-flex align-items-center mb-5 border-bottom">
+			<span class="fs-4"> SatNetMiniSim</span>
+		</header>
 	<p>	
-	Time: {{ info["current_time"] }},
-	Run Time: {{ info["run_time"] }}
+	<b>Network:</b> {{ info["rings"] }} Rings x {{ info["ring_nodes"] }} Nodes
+	</p>
+    <p>
+		<b>Total Links:</b> {{ info["link_stats"]["count"] }}
+    </p>
+    <p>
+		<b>Links Up:</b> {{ info["link_stats"]["up_count"] }}
+    </p>
+	<p>	
+	<b>Sample Time:</b>{{ info["current_time"] }}
+	</p>
 	<p>
-	Connectivity: Fail - {{ info["stats_total"] - info["stats_good"] }},
+	<b>Total Run Time:</b> {{ info["run_time"] }}
+	</p>
+	<p>
+	<b>Latest Pings:</b> Fail - {{ info["stats_total"] - info["stats_good"] }},
 		      Good - {{ info["stats_good"] }}
-	<p>
-	<input type="button" onclick="location.href='shutdown';" value="Shutdown"/>
-	<p>
+	</p>
 
 	<table>
    	    <tr>
-	        <th>Failed Connections</th>
-	        <th>Good Connections</th>
+	        <th>Failed Stable Connections</th>
+	        <th>Good Stable Connections</th>
    	    </tr>
    	    <tr>
 		<td>
@@ -92,12 +104,6 @@
     );
   </script>
 
-  <h2>Links</h2>
-	<ul>
-		<li>Total: {{ info["link_stats"]["count"] }}</li>
-		<li>Up: {{ info["link_stats"]["up_count"] }}</li>
-	</ul>
-
 	<h2>Events</h2>
 	<ul>
 	{% if info["events"]|length == 0 %}
@@ -112,7 +118,7 @@
   	<h2>Ground Stations</h2>
 	<ul>
 	{% for entry in info["stations"] %}
-		<li>Station: 
+		<li>
 			<a href="{{ url_for('view_station', name=entry.name) }}">
 				{{ entry.name }} 
 			</a>
@@ -168,6 +174,7 @@
 	{% endfor %}
 	</ul>
 
+	</div>
 
   </body>
 </html>
