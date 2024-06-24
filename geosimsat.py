@@ -11,6 +11,7 @@ Generate events for:
 """
 
 from dataclasses import dataclass, field
+import configparser
 import sys
 import datetime
 import time
@@ -160,37 +161,37 @@ class SatSimulation:
             current_time = future_time
 
 
-def run(num_rings: int, num_routers: int) -> None:
-    graph = torus_topo.create_network(num_rings, num_routers)
+def run(num_rings: int, num_routers: int, ground_stations: bool) -> None:
+    graph = torus_topo.create_network(num_rings, num_routers, ground_stations)
     sim: SatSimulation = SatSimulation(graph)
     sim.run()
 
 
 def usage():
-    print("Usage: sim_sat <num rings> <routers-per-ring>")
-    print("<rings> - number of rings in the topology, 1 - 20")
-    print("<routers-per-ring> - number of routers in each ring, 1 - 20")
-
+    print("Usage: sim_sat [config-file]")
 
 if __name__ == "__main__":
-    if len(sys.argv) != 1 and len(sys.argv) != 3:
+    if len(sys.argv) > 2:
+        usage()
+        sys.exit(-1)
+        
+    parser = configparser.ConfigParser()
+    parser['network'] = {}
+    try:
+        if len(sys.argv) == 2:
+            parser.read(sys.argv[1])
+    except Exception as e:
+        print(str(e))
         usage()
         sys.exit(-1)
 
-    num_rings = 4
-    num_routers = 4
-
-    if len(sys.argv) > 1:
-        try:
-            num_rings = int(sys.argv[1])
-            num_routers = int(sys.argv[2])
-        except:
-            usage()
-            sys.exit(-1)
+    num_rings = parser['network'].getint('rings', 4)
+    num_routers = parser['network'].getint('routers', 4)
+    ground_stations = parser['network'].getboolean('ground_stations', False)
 
     if num_rings < 1 or num_rings > 30 or num_routers < 1 or num_routers > 30:
-        usage()
+        print("Ring or router count out of supported range")
         sys.exit(-1)
 
-    print(f"Running {num_rings} rings with {num_routers} per ring")
-    run(num_rings, num_routers)
+    print(f"Running {num_rings} rings with {num_routers} per ring, ground stations {ground_stations}")
+    run(num_rings, num_routers, ground_stations)
