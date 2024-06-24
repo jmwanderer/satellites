@@ -111,11 +111,14 @@ class MNetNodeWrap:
         os.unlink(self.working_db)
 
     def update_monitor_stats(self):
-        db = mnet.pmonitor.open_db(self.working_db)
-        good, total = mnet.pmonitor.get_status_count(db)
-        self.last_five_pings = mnet.pmonitor.get_last_five(db)
-        db.close()
-        return good, total
+        # Only get stats if DB is being used
+        if os.path.getsize(self.working_db) > 0:
+            db = mnet.pmonitor.open_db(self.working_db)
+            good, total = mnet.pmonitor.get_status_count(db)
+            self.last_five_pings = mnet.pmonitor.get_last_five(db)
+            db.close()
+            return good, total
+        return 0, 0
  
     def defaultIP(self) -> str:
         """

@@ -4,4 +4,4 @@ routers=8
 ground_stations=yes
 
 [monitor]
-stable_monitors=yes
+stable_monitors=no
