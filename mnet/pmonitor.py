@@ -162,7 +162,7 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
         targets = []
         logging.info("reload target list")
         c = db_master.cursor()
-        q = c.execute("SELECT name, address FROM targets WHERE stable = TRUE")
+        q = c.execute("SELECT name, address FROM targets")
         for entry in q.fetchall():
             targets.append(entry)
 
