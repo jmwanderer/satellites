@@ -167,7 +167,6 @@ class GroundStation(MNetNodeWrap):
         for link in uplinks:
             entry = IPPoolEntry(network=link["nw"], ip1=link["ip1"], ip2=link["ip2"])
             self.ip_pool.append(entry)
-            print(f"added pool entry {entry.network}")
 
     def stable_node(self) -> bool:
         """
@@ -444,6 +443,11 @@ class FrrSimRuntime:
         self.ground_stations: dict[str, GroundStation] = {}
         self.stable_monitors = stable_monitors
 
+        # Create monitoring DB file.
+        fd, self.db_file = tempfile.mkstemp(suffix=".sqlite")
+        open(fd, "r").close()
+        print(f"Master db file {self.db_file}")
+
         for frr_router in topo.routers:
             self.nodes[frr_router.name] = frr_router
             self.routers[frr_router.name] = frr_router
@@ -452,17 +456,12 @@ class FrrSimRuntime:
             self.ground_stations[ground_station.name] = ground_station
 
         self.stat_samples = []
-        fd, self.db_file = tempfile.mkstemp(suffix=".sqlite")
         self.net = net
         self.stub_net = False
         # If net is none, we are running in a stub mode without mininet or FRR.
         if self.net is None:
             self.net = StubMininet()
             self.stub_net = True
-
-        # Create monitoring DB file.
-        open(fd, "r").close()
-        print(f"Master db file {self.db_file}")
 
     def start_routers(self) -> None: 
         # Populate master db file
@@ -472,7 +471,7 @@ class FrrSimRuntime:
             data.append((router.name, router.defaultIP(), router.stable_node()))
         # Not stable targets - don't monitor
         for station in self.ground_stations.values():
-            data.append((station.name, station.defaultIP(), router.stable_node()))
+            data.append((station.name, station.defaultIP(), station.stable_node()))
         mnet.pmonitor.init_targets(self.db_file, data)
 
         # Start all nodes

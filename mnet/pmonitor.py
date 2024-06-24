@@ -182,8 +182,7 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
             if not TEST:
                 time.sleep(5)
             running = can_run(db_master, address)
-            target_running = is_running(db_master, target[1])
-            if running and target_running:
+            if running:
                 sample_target(db_local, target[0], target[1])
         if TEST:
             set_can_run(db_master, address, False)
