@@ -125,6 +125,13 @@ class MNetNodeWrap:
             return self.node.defaultIntf().ip
         return self.default_ip
 
+    def stable_node(self) -> bool:
+        """
+        Indicates if the node is expected to always be reachable
+        Default is True
+        """
+        return True
+
 
 @dataclass
 class IPPoolEntry:
@@ -158,6 +165,12 @@ class GroundStation(MNetNodeWrap):
             entry = IPPoolEntry(network=link["nw"], ip1=link["ip1"], ip2=link["ip2"])
             self.ip_pool.append(entry)
             print(f"added pool entry {entry.network}")
+
+    def stable_node(self) -> bool:
+        """
+        Indicates that the node is not expected to be always reachable.
+        """
+        return False
 
     def has_uplink(self, sat_name: str) -> bool:
         for uplink in self.uplinks:
@@ -217,7 +230,6 @@ class FrrRouter(MNetNodeWrap):
         self.vtysh = vtysh
         self.daemons = daemons
         self.ospf = ospf
-
 
     def write_configs(self) -> None:
         # Get frr config and save to frr config directory
@@ -421,12 +433,13 @@ class FrrSimRuntime:
     """
     Code for the FRR / Mininet / Monitoring functions.
     """
-    def __init__(self, topo: NetxTopo, net: mininet.net.Mininet):
+    def __init__(self, topo: NetxTopo, net: mininet.net.Mininet, stable_monitors: bool =False):
         self.graph = topo.graph
 
         self.nodes: dict[str, MNetNodeWrap] = {}
         self.routers: dict[str, FrrRouter] = {}
         self.ground_stations: dict[str, GroundStation] = {}
+        self.stable_monitors = stable_monitors
 
         for frr_router in topo.routers:
             self.nodes[frr_router.name] = frr_router
@@ -453,10 +466,10 @@ class FrrSimRuntime:
         data = []
         # Stable targets - to monitor
         for router in self.routers.values():
-            data.append((router.name, router.defaultIP(), True))
+            data.append((router.name, router.defaultIP(), router.stable_node()))
         # Not stable targets - don't monitor
         for station in self.ground_stations.values():
-            data.append((station.name, station.defaultIP(), False))
+            data.append((station.name, station.defaultIP(), router.stable_node()))
         mnet.pmonitor.init_targets(self.db_file, data)
 
         # Start all nodes
@@ -470,12 +483,16 @@ class FrrSimRuntime:
         # Start monitoring on all nodes
         db_master = mnet.pmonitor.open_db(self.db_file)
         for node in self.nodes.values():
-            node.startMonitor(self.db_file, db_master)
+            # Start monitor if node is not considered always reachable
+            # or we are running monitoring from the stable nodes.
+            if self.stable_monitors or not node.stable_node():
+                node.startMonitor(self.db_file, db_master)
         db_master.close()
 
         # Wait for monitoring to start
         for node in self.nodes.values():
-            node.waitOutput()
+            if self.stable_monitors or not node.stable_node():
+                node.waitOutput()
 
     def stop_routers(self):
         # Stop monitor on all nodes

@@ -1,0 +1,7 @@
+[network]
+rings=26
+routers=26
+ground_stations=no
+
+[monitor]
+stable_monitors=yes

@@ -3,6 +3,7 @@
 """
 Run a mininet instance of FRR routers in a torus topology.
 """
+import configparser
 import signal
 import sys
 
@@ -23,9 +24,9 @@ def signal_handler(sig, frame):
     print("Ctrl-C recieved, shutting down....")
     mnet.driver.invoke_shutdown()
 
-def run(num_rings, num_routers, use_cli, use_mnet):
+def run(num_rings, num_routers, use_cli, use_mnet, stable_monitors: bool, ground_stations: bool):
     # Create a networkx graph annoted with FRR configs
-    graph = torus_topo.create_network(num_rings, num_routers)
+    graph = torus_topo.create_network(num_rings, num_routers, ground_stations)
     frr_config_topo.annotate_graph(graph)
     frr_config_topo.dump_graph(graph)
 
@@ -39,10 +40,12 @@ def run(num_rings, num_routers, use_cli, use_mnet):
         net = Mininet(topo=topo)
         net.start()
 
-    frrt = mnet.frr_topo.FrrSimRuntime(topo, net)
+    frrt = mnet.frr_topo.FrrSimRuntime(topo, net, stable_monitors)
     print("created runtime")
 
     frrt.start_routers()
+
+    print(f"\n****Running {num_rings} rings with {num_routers} per ring, stable monitors {stable_monitors}, ground_stations {ground_stations}")
     if use_cli and net is not None:
         CLI(net)
     else:
@@ -72,25 +75,29 @@ if __name__ == "__main__":
         use_mnet = False
         sys.argv.remove("--no-mnet")
 
-    if len(sys.argv) != 1 and len(sys.argv) != 3:
-        usage()
-        sys.exit(-1)
-
-    num_rings = 4
-    num_routers = 4
-
-    if len(sys.argv) > 1:
-        try:
-            num_rings = int(sys.argv[1])
-            num_routers = int(sys.argv[2])
-        except:
+    if len(sys.argv) > 2:
             usage()
             sys.exit(-1)
 
-    if num_rings < 1 or num_rings > 30 or num_routers < 1 or num_routers > 30:
+    parser = configparser.ConfigParser()
+    parser['network'] = {}
+    parser['monitor'] = {}
+    try:
+        if len(sys.argv) == 2:
+            parser.read(sys.argv[1])
+    except Exception as e:
+        print(str(e))
         usage()
         sys.exit(-1)
 
+    num_rings = parser['network'].getint('rings', 4)
+    num_routers = parser['network'].getint('routers', 4)
+    ground_stations = parser['network'].getboolean('ground_stations', False)
+    stable_monitors = parser['monitor'].getboolean('stable_monitors', False)
+
+    if num_rings < 1 or num_rings > 30 or num_routers < 1 or num_routers > 30:
+        print("Rings or nodes count out of range")
+        sys.exit(-1)
+
     setLogLevel("info")
-    print(f"Running {num_rings} rings with {num_routers} per ring")
-    run(num_rings, num_routers, use_cli, use_mnet)
+    run(num_rings, num_routers, use_cli, use_mnet, stable_monitors, ground_stations)
