@@ -37,7 +37,7 @@ def create_network(num_rings: int =NUM_RINGS, num_ring_nodes: int =NUM_RING_NODE
     if prev_ring_num is not None:
         connect_rings(graph, prev_ring_num, 0, num_ring_nodes)
 
-    add_ground_stations(graph)
+    #add_ground_stations(graph)
 
     # Set all edges to up
     for edge_name, edge in graph.edges.items():

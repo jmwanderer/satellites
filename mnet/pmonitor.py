@@ -180,7 +180,7 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
 
         for target in targets:
             if not TEST:
-                time.sleep(3)
+                time.sleep(5)
             running = can_run(db_master, address)
             target_running = is_running(db_master, target[1])
             if running and target_running:

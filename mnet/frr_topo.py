@@ -411,8 +411,9 @@ class NetxTopo(mininet.topo.Topo):
                 router2,
                 intfName1=intf1,
                 intfName2=intf2,
-                params1={"ip": format(ip1)},
-                params2={"ip": format(ip2)},
+                params1={"ip": format(ip1), "delay": "1ms"},
+                params2={"ip": format(ip2), "delay": "1ms"},
+                cls=mininet.link.TCLink, 
             )
 
 
@@ -656,7 +657,8 @@ class FrrSimRuntime:
     ):
         # Create the link
         self.net.addLink(
-            station_name, sat_name, params1={"ip": format(ip1)}, params2={"ip": format(ip2)}
+                station_name, sat_name, params1={"ip": format(ip1), "delay": "1ms"}, params2={"ip": format(ip2), "delay": "1ms"},
+            cls=mininet.link.TCLink, 
         )
 
         # Configure FRR daemons to handle the uplink
