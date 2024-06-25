@@ -1,7 +1,7 @@
 [network]
-rings=8
-routers=8
+rings=30
+routers=30
 ground_stations=yes
 
 [monitor]
-stable_monitors=yes
+stable_monitors=no
