@@ -112,7 +112,6 @@ def root(request: Request):
         current_time = datetime.datetime.now().isoformat(sep=" ", timespec="seconds")
         run_time = str(context.run_time())
         ring_nodes = context.frrt.get_topo_graph().graph["ring_nodes"]
-        good, total = context.frrt.update_monitor_stats()
         routers = context.frrt.get_router_list()
         links = context.frrt.get_link_list()
         link_stats = {}
@@ -125,12 +124,21 @@ def root(request: Request):
 
         link_stats["up_count"] = up_count
 
-        src_stats = context.frrt.get_stat_samples()
-        stats = []
-        for stat in src_stats:
-            stats.append(
-                (stat[0].time().isoformat(timespec="seconds"), stat[1], stat[2])
-            )
+        stat_samples = context.frrt.get_stat_samples()
+
+        stats_dates = []
+        stats_stable_fail = []
+        stats_stable_ok = []
+        stats_dynamic_fail = []
+        stats_dynamic_ok = []
+
+        for stat in stat_samples:
+            stats_dates.append(stat[0].time().isoformat(timespec="seconds"))
+            stats_stable_ok.append(stat[1])
+            stats_stable_fail.append(stat[2] - stat[1])
+            stats_dynamic_ok.append(stat[3])
+            stats_dynamic_fail.append(stat[4] - stat[3])
+
         # dict: key name, value: list of up to five tuples. tuple[name,bool]
         ping_stats = context.frrt.get_last_five_stats()
         events = []
@@ -141,14 +149,16 @@ def root(request: Request):
     info = {
         "rings": rings,
         "ring_nodes": ring_nodes,
-        "stats_good": good,
-        "stats_total": total,
         "current_time": current_time,
         "run_time": run_time,
         "routers": routers,
         "link_stats": link_stats,
         "events": events,
-        "stats": stats,
+        "stats_dates": stats_dates,
+        "stats_stable_ok": stats_stable_ok,
+        "stats_stable_fail": stats_stable_fail,
+        "stats_dynamic_ok": stats_dynamic_ok,
+        "stats_dynamic_fail": stats_dynamic_fail,
         "ping_stats": ping_stats,
         "stations": stations,
     }

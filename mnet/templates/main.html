@@ -24,28 +24,40 @@
 	<b>Total Run Time:</b> {{ info["run_time"] }}
 	</p>
 	<p>
-	<b>Latest Pings:</b> Fail - {{ info["stats_total"] - info["stats_good"] }},
-		      Good - {{ info["stats_good"] }}
-	</p>
 
 	<table>
    	    <tr>
-	        <th>Failed Stable Connections</th>
-	        <th>Good Stable Connections</th>
+	        <th></th>
+	        <th>Failed Connections</th>
+	        <th>Good Connections</th>
    	    </tr>
    	    <tr>
+		<td><b>Stable Nodes</b></td>
 		<td>
 		    <div style="width: 500px;">
-		    <canvas id="fail_chart"/>
+		    <canvas id="fail_stable"/>
 	 	    </div>
 		</td>
 		<td>
 		    <div style="width: 500px;">
-		    <canvas id="ok_chart"/>
+		    <canvas id="ok_stable"/>
 	 	    </div>
 		</td>
 	    </tr>
-	</table>
+   	    <tr>
+	    	<td><b>Dynamic Nodes</b></td>
+		<td>
+		    <div style="width: 500px;">
+		    <canvas id="fail_dynamic"/>
+	 	    </div>
+		</td>
+		<td>
+		    <div style="width: 500px;">
+		    <canvas id="ok_dynamic"/>
+	 	    </div>
+		</td>
+	    </tr>
+</table>
 
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.3.0/chart.umd.js" 
 		integrity="sha512-CMF3tQtjOoOJoOKlsS7/2loJlkyctwzSoDK/S40iAB+MqWSaf50uObGQSk5Ny/gfRhRCjNLvoxuCvdnERU4WGg==" 
@@ -54,25 +66,19 @@
 
     <script> 
 
-            const data_fail = [
-		{% for entry in info["stats"] %}
-				{{ entry[2]  - entry[1]}},
-		{% endfor %}
-		    ];
-
-    	    const data_ok = [
-		{% for entry in info["stats"] %}
-		      {{entry[1]}},
-		{% endfor %}
-	    ];
 	    const dates = [
-		{% for entry in info["stats"] %}
-		'{{ entry[0] }}',
+		{% for entry in info["stats_dates"] %}
+		"{{entry}}",
 		{% endfor %}
- 	    ];
+		];
+
+        const stats_stable_ok = {{ info["stats_stable_ok"] }};
+        const stats_stable_fail = {{ info["stats_stable_fail"] }};
+        const stats_dynamic_ok = {{ info["stats_dynamic_ok"] }};
+        const stats_dynamic_fail = {{ info["stats_dynamic_fail"] }};
 
     new Chart(
-        document.getElementById('fail_chart'),
+        document.getElementById('fail_stable'),
         {
             type: 'line',
             data: {
@@ -80,15 +86,15 @@
                 datasets: [
                     {
                         label: 'Pings',
-                        data: data_fail
+                        data: stats_stable_fail
                     },
                ]
             }
         }
     );
- 
+	    
     new Chart(
-        document.getElementById('ok_chart'),
+        document.getElementById('ok_stable'),
         {
             type: 'line',
             data: {
@@ -96,7 +102,39 @@
                 datasets: [
                     {
                         label: 'Pings',
-                        data: data_ok
+                        data: stats_stable_ok
+                    }
+                ]
+            }
+        }
+    );
+
+    new Chart(
+        document.getElementById('fail_dynamic'),
+        {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [
+                    {
+                        label: 'Pings',
+                        data: stats_dynamic_fail
+                    }
+                ]
+            }
+        }
+    );
+ 
+    new Chart(
+        document.getElementById('ok_dynamic'),
+        {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [
+                    {
+                        label: 'Pings',
+                        data: stats_dynamic_ok
                     }
                 ]
             }

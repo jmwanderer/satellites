@@ -114,7 +114,7 @@ class MNetNodeWrap:
         # Only get stats if DB is being used
         if os.path.getsize(self.working_db) > 0:
             db = mnet.pmonitor.open_db(self.working_db)
-            good, total = mnet.pmonitor.get_status_count(db)
+            good, total = mnet.pmonitor.get_status_count(db, self.stable_node())
             self.last_five_pings = mnet.pmonitor.get_last_five(db)
             db.close()
             return good, total
@@ -513,17 +513,31 @@ class FrrSimRuntime:
         os.unlink(self.db_file)
 
     def update_monitor_stats(self):
-        good_count: int = 0
-        total_count: int = 0
+        stable_good_count: int = 0
+        stable_total_count: int = 0
+        dynamic_good_count: int = 0
+        dynamic_total_count: int = 0
+
         if self.stub_net:
-            good_count: int = random.randrange(20)
-            total_count: int = random.randrange(20) + good_count
+            stable_good_count: int = random.randrange(20)
+            stable_total_count: int = random.randrange(20) + stable_good_count
+            dynamic_good_count: int = random.randrange(20)
+            dynamic_total_count: int = random.randrange(20) + dynamic_good_count
         else:
             for node in self.nodes.values():
                 good, total = node.update_monitor_stats()
-                good_count += good
-                total_count += total
-        return good_count, total_count
+                if node.stable_node():
+                    stable_good_count += good
+                    stable_total_count += total
+                else:
+                    dynamic_good_count += good
+                    dynamic_total_count += total
+
+        self.stat_samples.append((datetime.datetime.now(), 
+                                    stable_good_count, stable_total_count,
+                                    dynamic_good_count, dynamic_total_count))
+        if len(self.stat_samples) > 200:
+            self.stat_samples.pop(0)
 
     def get_last_five_stats(self) -> dict[str, list[tuple[str,bool]]]:
         result: dict[str, list[tuple[str,bool]]] = {}
@@ -532,10 +546,7 @@ class FrrSimRuntime:
         return result
 
     def sample_stats(self):
-        good, total = self.update_monitor_stats()
-        self.stat_samples.append((datetime.datetime.now(), good, total))
-        if len(self.stat_samples) > 200:
-            self.stat_samples.pop(0)
+        self.update_monitor_stats()
 
     def get_node_status_list(self, name: str):
         node = self.nodes[name]

@@ -63,16 +63,18 @@ def set_can_run(db, address: str, can_run):
     db.commit()
 
 
-def get_status_count(db):
+def get_status_count(db, stable: bool):
     c = db.cursor()
-    # Check if the current node is stable, if not exclude data for this stat
-    good_targets = 0
-    total_targets = 0
-    q = c.execute("SELECT COUNT(*) FROM targets WHERE stable = TRUE AND me = TRUE")
-    if q.fetchone()[0] > 0:
+    # May sample only stable node connections or all
+    if stable:
         q = c.execute("SELECT COUNT(*) FROM targets WHERE stable = TRUE AND responded = TRUE")
         good_targets = q.fetchone()[0]
         q = c.execute("SELECT COUNT(*) FROM targets WHERE stable = TRUE AND total_count > 0")
+        total_targets = q.fetchone()[0]
+    else:
+        q = c.execute("SELECT COUNT(*) FROM targets WHERE responded = TRUE")
+        good_targets = q.fetchone()[0]
+        q = c.execute("SELECT COUNT(*) FROM targets WHERE total_count > 0")
         total_targets = q.fetchone()[0]
     c.close()
     return good_targets, total_targets
