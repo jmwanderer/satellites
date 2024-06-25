@@ -97,7 +97,7 @@ def get_status_list(db):
 TEST = False
 
 
-def sample_target(db, name: str, address: str):
+def sample_target(db, name: str, address: str, stable: bool):
     logging.info("sample target: %s", address)
     process = subprocess.run(
         ["ping", "-c1", "-W3", f"{address}"], capture_output=True, text=True
@@ -112,7 +112,7 @@ def sample_target(db, name: str, address: str):
     q = c.execute("SELECT responded FROM targets WHERE address = ?", (address,))
     qr = q.fetchall()
     if len(qr) == 0:
-        c.execute("INSERT INTO targets (name, address, sample_time) VALUES (?, ?, ?)", (name, address, now))
+        c.execute("INSERT INTO targets (name, address, sample_time, stable) VALUES (?, ?, ?, ?)", (name, address, now, stable))
     else:
         prev_responded = qr[0][0]
 
@@ -162,7 +162,7 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
         targets = []
         logging.info("reload target list")
         c = db_master.cursor()
-        q = c.execute("SELECT name, address FROM targets")
+        q = c.execute("SELECT name, address, stable FROM targets")
         for entry in q.fetchall():
             targets.append(entry)
 
@@ -183,7 +183,7 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
                 time.sleep(5)
             running = can_run(db_master, address)
             if running:
-                sample_target(db_local, target[0], target[1])
+                sample_target(db_local, target[0], target[1], target[2])
         if TEST:
             set_can_run(db_master, address, False)
         running = can_run(db_master, address)
