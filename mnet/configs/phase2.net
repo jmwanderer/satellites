@@ -7,4 +7,4 @@ ground_stations=yes
 stable_monitors=no
 
 [physical]
-min_altitude=10
+min_altitude=15

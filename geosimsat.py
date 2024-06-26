@@ -170,12 +170,12 @@ class SatSimulation:
             self.updateUplinkStatus(future_time)
             self.updateInterPlaneStatus()
             sleep_delta = future_time - datetime.datetime.now(tz=datetime.timezone.utc)
+            print(f"zero uplink % = {self.zero_uplink_count / self.uplink_updates}")
             print("sleep")
             if not self.calc_only:
                 time.sleep(sleep_delta.seconds)
                 self.send_updates()
             current_time = future_time
-            print(f"zero uplink % = {self.zero_uplink_count / self.uplink_updates}")
 
 
 def run(num_rings: int, num_routers: int, ground_stations: bool, min_alt: int, calc_only: bool) -> None:
