@@ -5,3 +5,6 @@ ground_stations=yes
 
 [monitor]
 stable_monitors=yes
+
+[physical]
+min_altitude=0
