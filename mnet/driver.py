@@ -201,24 +201,6 @@ def view_station(request: Request, name: str):
     )
 
 
-@app.get("/view/link/{node1}/{node2}", response_class=HTMLResponse)
-def view_link(request: Request, node1: str, node2: str):
-    with get_context() as context:
-        link = context.frrt.get_link(node1, node2)
-        up1, up2 = context.frrt.get_link_state(node1, node2)
-
-    return templates.TemplateResponse(
-        request=request,
-        name="link.html",
-        context={
-            "link": link,
-            "intf1_state": intf_state(up1),
-            "intf2_state": intf_state(up2),
-        },
-    )
-
-
-
 @app.put("/link")
 def set_link(link: simapi.Link):
     """
