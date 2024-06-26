@@ -435,13 +435,13 @@ class FrrSimRuntime:
     """
     Code for the FRR / Mininet / Monitoring functions.
     """
-    def __init__(self, topo: NetxTopo, net: mininet.net.Mininet, stable_monitors: bool =False):
+    def __init__(self, topo: NetxTopo, net: mininet.net.Mininet, stable_monitor: bool =False):
         self.graph = topo.graph
 
         self.nodes: dict[str, MNetNodeWrap] = {}
         self.routers: dict[str, FrrRouter] = {}
         self.ground_stations: dict[str, GroundStation] = {}
-        self.stable_monitors = stable_monitors
+        self.stable_monitor = stable_monitor
 
         # Create monitoring DB file.
         fd, self.db_file = tempfile.mkstemp(suffix=".sqlite")
@@ -487,13 +487,13 @@ class FrrSimRuntime:
         for node in self.nodes.values():
             # Start monitor if node is not considered always reachable
             # or we are running monitoring from the stable nodes.
-            if self.stable_monitors or not node.stable_node():
+            if self.stable_monitor or not node.stable_node():
                 node.startMonitor(self.db_file, db_master)
         db_master.close()
 
         # Wait for monitoring to start
         for node in self.nodes.values():
-            if self.stable_monitors or not node.stable_node():
+            if self.stable_monitor or not node.stable_node():
                 node.waitOutput()
 
     def stop_routers(self):

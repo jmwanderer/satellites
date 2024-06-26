@@ -36,6 +36,7 @@
 	        <th>Failed Connections</th>
 	        <th>Good Connections</th>
    	    </tr>
+	    {% if info["monitor_stable_nodes"] %}
    	    <tr>
 		<td><b>Stable Nodes</b></td>
 		<td>
@@ -49,6 +50,7 @@
 	 	    </div>
 		</td>
 	    </tr>
+	    {% endif %}
    	    <tr>
 	    	<td><b>Dynamic Nodes</b></td>
 		<td>
@@ -82,6 +84,7 @@
         const stats_dynamic_ok = {{ info["stats_dynamic_ok"] }};
         const stats_dynamic_fail = {{ info["stats_dynamic_fail"] }};
 
+    {% if info["monitor_stable_nodes"] %}
     new Chart(
         document.getElementById('fail_stable'),
         {
@@ -113,6 +116,7 @@
             }
         }
     );
+    {% endif %}
 
     new Chart(
         document.getElementById('fail_dynamic'),

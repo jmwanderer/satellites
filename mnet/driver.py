@@ -126,6 +126,7 @@ def root(request: Request):
 
         stat_samples = context.frrt.get_stat_samples()
 
+        monitor_stable_nodes: bool = context.frrt.stable_monitor
         stats_dates = []
         stats_stable_fail = []
         stats_stable_ok = []
@@ -154,6 +155,7 @@ def root(request: Request):
         "routers": routers,
         "link_stats": link_stats,
         "events": events,
+        "monitor_stable_nodes": monitor_stable_nodes,
         "stats_dates": stats_dates,
         "stats_stable_ok": stats_stable_ok,
         "stats_stable_fail": stats_stable_fail,
