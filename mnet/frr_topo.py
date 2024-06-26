@@ -550,10 +550,11 @@ class FrrSimRuntime:
 
     def get_node_status_list(self, name: str):
         node = self.nodes[name]
-        db_working = mnet.pmonitor.open_db(node.working_db)
         result = []
-        if not self.stub_net:
+        if not self.stub_net and os.path.getsize(node.working_db) > 0:
+            db_working = mnet.pmonitor.open_db(node.working_db)
             result = mnet.pmonitor.get_status_list(db_working)
+            db_working.close()
         return result
 
     def get_stat_samples(self):
