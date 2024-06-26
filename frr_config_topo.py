@@ -90,7 +90,6 @@ service integrated-vtysh-config
 router ospf
  ospf router-id {ip}
  redistribute static
- redistribute connected
 {networks}
 exit
 !

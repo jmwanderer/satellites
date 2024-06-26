@@ -699,11 +699,6 @@ class FrrSimRuntime:
         # ip route {ground station ip /32} {ground station pool ip}
         frr_router.config_frr("staticd", [ f"ip route {station.defaultIP()}/32 {format(ip1.ip)}" ])
 
-        # After we remove redistribute connected, need to advertise the network in OSPF
-        # Perhaps use the passive config?
-        #frr_node.frr_config_commands(kkkk
-        #        [ "router ospf",
-        #         f"network {format(ip_nw)} area 0.0.0.0"])
 
     def _remove_link(self, station_name: str, sat_name: str, ip_nw: ipaddress.IPv4Network) -> None:
         station_node = self.net.getNodeByName(station_name)

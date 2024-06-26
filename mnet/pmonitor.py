@@ -99,10 +99,10 @@ def get_status_list(db):
 TEST = False
 
 
-def sample_target(db, name: str, address: str, stable: bool):
+def sample_target(db, name: str, address: str, stable: bool, src_address: str):
     logging.info("sample target: %s", address)
     process = subprocess.run(
-        ["ping", "-c1", "-W3", f"{address}"], capture_output=True, text=True
+        ["ping", "-I", src_address, "-c1", "-W3", f"{address}"], capture_output=True, text=True
     )
     logging.info("%s", process.stdout)
     sent, received = mininet.net.Mininet._parsePing(process.stdout)
@@ -185,7 +185,7 @@ def monitor_targets(db_path_master: str, db_path_local: str, address: str):
                 time.sleep(5)
             running = can_run(db_master, address)
             if running:
-                sample_target(db_local, target[0], target[1], target[2])
+                sample_target(db_local, target[0], target[1], target[2], address)
         if TEST:
             set_can_run(db_master, address, False)
         running = can_run(db_master, address)
