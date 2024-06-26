@@ -1,10 +1,10 @@
 [network]
-rings=30
-routers=30
+rings=26
+routers=26
 ground_stations=yes
 
 [monitor]
 stable_monitors=no
 
 [physical]
-min_altitude=15
+min_altitude=10
