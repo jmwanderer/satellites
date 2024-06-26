@@ -24,7 +24,7 @@ from skyfield.api import load, wgs84 # type: ignore
 from skyfield.api import EarthSatellite # type: ignore
 from skyfield.positionlib import Geocentric # type: ignore
 from skyfield.toposlib import GeographicPosition # type: ignore
-from skyfield.units import Angle # type: ignore
+from skyfield.units import Angle, Distance # type: ignore
 
 
 @dataclass
@@ -36,6 +36,7 @@ class Satellite:
     geo: Geocentric = None
     lat: Angle = 0
     lon: Angle = 0
+    height: Distance = 0
     inter_plane_status: bool = True
     prev_inter_plane_status: bool = True
 
@@ -61,6 +62,7 @@ class SatSimulation:
 
     # Time slice for simulation
     TIME_SLICE = 10
+    MIN_ALTITUDE = 35
 
     def __init__(self, graph: networkx.Graph):
         self.graph = graph
@@ -68,6 +70,10 @@ class SatSimulation:
         self.satellites: list[Satellite] = []
         self.ground_stations: list[GroundStation] = []
         self.client: simclient.Client = simclient.Client("http://127.0.0.0:8000")
+        self.calc_only = False
+        self.min_altitude = SatSimulation.MIN_ALTITUDE
+        self.zero_uplink_count = 0
+        self.uplink_updates = 0
 
         for name in torus_topo.ground_stations(graph):
             node = graph.nodes[name]
@@ -90,19 +96,23 @@ class SatSimulation:
             lat, lon = wgs84.latlon_of(satellite.geo)
             satellite.lat = lat
             satellite.lon = lon
-            print(f"{satellite.name} Lat: {satellite.lat}, Lon: {satellite.lon}")
+            satellite.height = wgs84.height_of(satellite.geo)
+            #print(f"{satellite.name} Lat: {satellite.lat}, Lon: {satellite.lon}, Hieght: {satellite.height.km}km")
 
     @staticmethod
     def nearby(ground_station: GroundStation, satellite: Satellite) -> bool:
-        return (satellite.lon.degrees > ground_station.position.longitude.degrees - 15 and
-                satellite.lon.degrees < ground_station.position.longitude.degrees + 15 and
-                satellite.lat.degrees > ground_station.position.latitude.degrees - 10 and 
-                satellite.lat.degrees < ground_station.position.latitude.degrees + 10)
+        return (satellite.lon.degrees > ground_station.position.longitude.degrees - 20 and
+                satellite.lon.degrees < ground_station.position.longitude.degrees + 20 and
+                satellite.lat.degrees > ground_station.position.latitude.degrees - 20 and 
+                satellite.lat.degrees < ground_station.position.latitude.degrees + 20)
  
     def updateUplinkStatus(self, future_time: datetime.datetime):
         """
         Update the links between ground stations and satellites
         """
+        self.uplink_updates += 1
+        zero_uplinks: bool = False
+
         sfield_time = self.ts.from_datetime(future_time)
         for ground_station in self.ground_stations:
             ground_station.uplinks = [] 
@@ -112,12 +122,17 @@ class SatSimulation:
                     difference = satellite.earth_sat - ground_station.position
                     topocentric = difference.at(sfield_time)
                     alt, az, d = topocentric.altaz()
-                    if alt.degrees > 35:
+                    if alt.degrees > self.min_altitude:
                         uplink = Uplink(satellite.name, ground_station.name, d.km)
                         ground_station.uplinks.append(uplink)
                         print(f"{satellite.name} Lat: {satellite.lat}, Lon: {satellite.lon}")
                         print(f"{ground_station.name} Lat: {ground_station.position.latitude}, Lon: {ground_station.position.longitude}")
                         print(f"ground {ground_station.name}, sat {satellite.name}: {alt}, {az}, {d.km}")
+            if len(ground_station.uplinks) == 0:
+                zero_uplinks = True
+        if zero_uplinks:
+            self.zero_uplink_count += 1
+            
 
     def updateInterPlaneStatus(self):
         inclination = self.graph.graph["inclination"]
@@ -156,27 +171,47 @@ class SatSimulation:
             self.updateInterPlaneStatus()
             sleep_delta = future_time - datetime.datetime.now(tz=datetime.timezone.utc)
             print("sleep")
-            time.sleep(sleep_delta.seconds)
-            self.send_updates()
+            if not self.calc_only:
+                time.sleep(sleep_delta.seconds)
+                self.send_updates()
             current_time = future_time
+            print(f"zero uplink % = {self.zero_uplink_count / self.uplink_updates}")
 
 
-def run(num_rings: int, num_routers: int, ground_stations: bool) -> None:
+def run(num_rings: int, num_routers: int, ground_stations: bool, min_alt: int, calc_only: bool) -> None:
+    """
+    Simulate physical positions of satellites.
+
+    num_rings: number of orbital rings
+    num_routers: number of satellites on each ring
+    ground_stations: True if groundstations are included
+    min_alt: Minimum angle (degrees) above horizon needed to connect to the satellite
+    calc_only: If True, only loop quicky dumping results to the screen
+    """
     graph = torus_topo.create_network(num_rings, num_routers, ground_stations)
     sim: SatSimulation = SatSimulation(graph)
+    sim.min_altitude = min_alt
+    sim.calc_only = calc_only
     sim.run()
 
 
 def usage():
-    print("Usage: sim_sat [config-file]")
+    print("Usage: sim_sat [config-file] [--calc-ony]")
 
 if __name__ == "__main__":
+    calc_only = False
+    if "--calc-only" in sys.argv:
+        # Only run calculations in a loop reporting data to the screen
+        calc_only = True
+        sys.argv.remove("--calc-only")
+
     if len(sys.argv) > 2:
         usage()
         sys.exit(-1)
         
     parser = configparser.ConfigParser()
     parser['network'] = {}
+    parser['physical'] = {}
     try:
         if len(sys.argv) == 2:
             parser.read(sys.argv[1])
@@ -187,11 +222,10 @@ if __name__ == "__main__":
 
     num_rings = parser['network'].getint('rings', 4)
     num_routers = parser['network'].getint('routers', 4)
+    # Should ground stations be included in the network?
     ground_stations = parser['network'].getboolean('ground_stations', False)
-
-    if num_rings < 1 or num_rings > 30 or num_routers < 1 or num_routers > 30:
-        print("Ring or router count out of supported range")
-        sys.exit(-1)
+    # Minimum angle above horizon needed to connect to satellites
+    min_alt = parser['physical'].getint('min_altitude', SatSimulation.MIN_ALTITUDE)
 
     print(f"Running {num_rings} rings with {num_routers} per ring, ground stations {ground_stations}")
-    run(num_rings, num_routers, ground_stations)
+    run(num_rings, num_routers, ground_stations, min_alt, calc_only)
