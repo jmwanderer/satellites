@@ -37,6 +37,7 @@ stable_monitors=No
 
 ## Reporting
 
+![Main Screen](main.png "Main Screen")
 
 ### Connections
 Node to node monitoring is done with pings. The point to point ping results
