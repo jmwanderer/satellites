@@ -163,7 +163,16 @@ class SatSimulation:
     def run(self):
         current_time = datetime.datetime.now(tz=datetime.timezone.utc)
         slice_delta = datetime.timedelta(seconds=SatSimulation.TIME_SLICE)
+
+        # Generate positions for current time
+        print(f"update positions for {current_time}")
+        self.updatePositions(current_time)
+        self.updateUplinkStatus(current_time)
+        self.updateInterPlaneStatus()
+        self.send_updates()
+
         while True:
+            # Generate positions for next time step
             future_time = current_time + slice_delta
             print(f"update positions for {future_time}")
             self.updatePositions(future_time)
@@ -173,6 +182,7 @@ class SatSimulation:
             print(f"zero uplink % = {self.zero_uplink_count / self.uplink_updates}")
             print("sleep")
             if not self.calc_only:
+                # Wait until next time step thenupdate
                 time.sleep(sleep_delta.seconds)
                 self.send_updates()
             current_time = future_time
