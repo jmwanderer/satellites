@@ -137,12 +137,12 @@ the same.
 
 Run the mininet environment:
 ```
-sudo python -m mnet.run_mn
+sudo python -m mnet.run_mn mnet/configs/small.net
 ```
 
 Run the satellite location simulation:
 ```
-python geosimsat.py
+python geosimsat.py mnet/configs/small.net
 ```
 
 ## Run the UI / Sim Stub
@@ -161,17 +161,13 @@ Running the stub simulates that satellite positions and physical events,
 provides the UI, but does not emulate the network.
 
 ```
-sudo python -m mnet.run_ui_stub
+sudo python -m mnet.run_mn mnet/configs/small.net --no-mnet
 ```
 
-Run the satellite location simulation:
-```
-python geosimsat.py
-```
 
 ## TODO / Plans
 
-The network currently just runs an OSPF daemon on each node to exchange.
+The network currently runs an OSPF, staticd, and zebra daemon on each node to exchange.
 Possible plans include:
 - Add a flat world map and chart the positions of the satellites
 - Add ground stations at fixed positions
