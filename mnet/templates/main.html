@@ -17,10 +17,10 @@
 	<b>Network:</b> {{ info["rings"] }} Rings x {{ info["ring_nodes"] }} Nodes
 	</p>
     <p>
-		<b>Total Links:</b> {{ info["link_stats"]["count"] }}
-    </p>
-    <p>
-		<b>Links Up:</b> {{ info["link_stats"]["up_count"] }}
+	<b>Links:</b> 
+	 {{ info["link_stats"]["count"] }} Total, 
+	 {{ info["link_stats"]["up_count"] }} Up,
+	 {{ info["link_stats"]["count"] - info["link_stats"]["up_count"] }} Down
     </p>
 	<p>	
 	<b>Sample Time:</b>{{ info["current_time"] }}
