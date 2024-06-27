@@ -660,7 +660,11 @@ class FrrSimRuntime:
             if sat_name not in next_list:
                 print(f"Remove uplink {station.name} - {sat_name}")
                 uplink = station.remove_uplink(sat_name)
-                self._remove_link(station_name, sat_name, uplink.ip_pool_entry.network)
+                self._remove_link(
+                        station_name, 
+                        sat_name, 
+                        uplink.ip_pool_entry.network,
+                        uplink.ip_pool_entry.ip1)
 
         # Add any new links
         for link in uplinks:
@@ -701,13 +705,13 @@ class FrrSimRuntime:
         frr_router.config_frr("staticd", [ f"ip route {station.defaultIP()}/32 {format(ip1.ip)}" ])
 
 
-    def _remove_link(self, station_name: str, sat_name: str, ip_nw: ipaddress.IPv4Network) -> None:
+    def _remove_link(self, station_name: str, sat_name: str, ip_nw: ipaddress.IPv4Network, ip: ipaddress.IPv4Interface) -> None:
         station_node = self.net.getNodeByName(station_name)
         sat_node = self.net.getNodeByName(sat_name)
-        # TODO: add no ip route for ground station
-        #sat_node.frr_config_command(
-        #        [ "router ospf", 
-        #         f"no network {format(ip_nw)} area 0.0.0.0"])
+        # Remove static route
+        station = self.ground_stations[station_name]
+        frr_router = self.routers[sat_name]
+        frr_router.config_frr("staticd", [ f"no ip route {station.defaultIP()}/32 {format(ip.ip)}" ])
         self.net.delLinkBetween(station_node, sat_node)
 
     def _update_default_route(self, station: GroundStation) -> None:
